@@ -68,7 +68,10 @@ test("browser controls start a duel and accept a human action", async () => {
     getElementById: id => { if (!ids.has(id)) ids.set(id, new Element()); return ids.get(id); },
     createElement: tag => new Element(tag),
   };
-  new Function("document", script)(document);
+  const shuffleMain = new Function("document", `${script}; return shuffleMain;`)(document);
+  const cards = [1, 2, 3, 4];
+  assert.deepEqual(shuffleMain(cards, () => 0), [2, 3, 4, 1]);
+  assert.deepEqual(cards, [1, 2, 3, 4]);
   assert.ok(ids.get("human-deck").children.length >= 2);
   document.getElementById("human-seat").value = "0";
   await ids.get("start").onclick();

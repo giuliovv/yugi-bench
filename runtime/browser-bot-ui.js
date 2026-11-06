@@ -1,5 +1,13 @@
 const $ = id => document.getElementById(id);
 const decks = DECKS.filter(deck => !deck.aviso && deck.main.length >= 40);
+function shuffleMain(cards, random = Math.random) {
+  const shuffled = [...cards];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 const deckOption = (select, index) => {
   for (const [i, deck] of decks.entries()) {
     const option = document.createElement("option");
@@ -123,7 +131,7 @@ $("start").onclick = async () => {
   try {
     status("Loading GOAT rules and starting duel…");
     const seed = Math.floor(Math.random() * 0x7fffffff);
-    const result = await Bridge.reset({ seed, decks: order.map(deck => deck.main), extras: order.map(deck => deck.extra) });
+    const result = await Bridge.reset({ seed, decks: order.map(deck => shuffleMain(deck.main)), extras: order.map(deck => deck.extra) });
     $("setup").classList.add("hidden");
     await advance(result);
   } catch (error) {
