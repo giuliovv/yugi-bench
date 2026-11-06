@@ -2,6 +2,8 @@
 
 Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. This repository is **not yet a playable simulator**. Its first milestone is a reliable, reproducible rules engine with an API suitable for self-play, imitation learning, and evaluation.
 
+The static UI in `web/` is a scripted, interactive design prototype. It does not enforce card rules, connect to an engine, or train a model.
+
 ## Why this shape
 
 - **Rules engine:** one authoritative implementation owns legality, card effects, chains, priority, victory, and randomness. Do not train on a manual UI's clicks as though they were legal game states.
@@ -35,6 +37,18 @@ pytest
 ```
 
 The tests currently cover the **interface contract**, not GOAT gameplay. No pretrained model or full card database is included.
+
+## Web prototype
+
+Open `web/index.html` locally, or serve it with `python3 -m http.server 8000 -d web`. Select sample actions to inspect how a future engine's player observation, action list, and decision trace will fit together. Card panels are original placeholders, not Yu-Gi-Oh! artwork.
+
+To deploy to AWS from an identity with S3 and CloudFront permissions:
+
+```sh
+bash infra/deploy-web.sh
+```
+
+The script is idempotent: it uses a private account-scoped S3 bucket in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. It prints the distribution URL. No public S3 access or custom domain is required.
 
 ## References and rights
 
