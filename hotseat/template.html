@@ -951,6 +951,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
 <div id="coin"></div>
 <div id="handoff" hidden role="dialog" aria-modal="true" aria-labelledby="handoff-player">
   <div class="handoff-card"><span class="handoff-kicker">PASS THE DEVICE</span><h2 id="handoff-player">Player 1</h2>
+    <p id="handoff-context">Your turn</p>
     <p>Only the named player should see the screen. Your hand will appear when you are ready.</p>
     <button id="handoff-ready" type="button">I am ready</button></div>
 </div>
@@ -960,6 +961,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
 .handoff-kicker{font-size:11px;letter-spacing:.22em;color:#d8b45c}
 .handoff-card h2{font-size:48px;color:#f4d990;margin:18px 0}
 .handoff-card p{font-size:15px;line-height:1.6;color:#b7c6d8}
+#handoff-context{color:#f4d990;font-weight:700}
 .handoff-card button{margin-top:20px;background:#d8b45c;color:#08111e;border:0;padding:15px 40px;font-weight:700;font-size:15px;cursor:pointer}
 </style>
 <div id="zoneview"></div><div id="confirm"></div><div id="fin"></div>

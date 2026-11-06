@@ -637,64 +637,44 @@ async function loop(){
       run:()=>document.getElementById("btnLog").click()}], String(e && e.message || e));
   }
 }
+export function routePrompt(q, currentPlayer, X, resolveTrivial, automaticTypes, resolveAuto){
+  if(!q) return { automatic:null, handoffTo:null };
+  const inspectOpponentHand = q.type===X.OcgMessageType.SELECT_CARD
+    && (q.selects||[]).some(s => s.location===2 && s.controller!==q.player);
+  const automatic = inspectOpponentHand ? null
+    : resolveTrivial(q) ?? (automaticTypes.has(q.type) ? resolveAuto(q) : null);
+  return { automatic, handoffTo:!automatic && (q.player===0 || q.player===1)
+    && q.player!==currentPlayer ? q.player : null };
+}
 async function loopInterno(){
   while(true){
     if(rendido) return;
     const q=await duel.run();
     if(rendido) return;
-    if(q && (q.player===0 || q.player===1) && q.player!==ME) await handoff(q.player);
+    // ocgcore asks both players many bookkeeping questions. Resolve those
+    // before changing the visible hand, or a no-op prompt bounces the device.
+    const {automatic, handoffTo}=routePrompt(q, ME, OCG, trivial, AUTO_KINDS,
+      m=>(m.type===OCG.OcgMessageType.SELECT_PLACE ? placeFromDrop(m) : null)
+        ?? decideAI(m,0));
     const ended=await drain();
     if(ended||duel.finished) return;
     if(!q) return;
-    {
-      /* Excepción a "sin elección real, resuelve solo": si lo que se elige
-         está en la mano del rival, la gracia es VERLA. Aunque solo haya un
-         objetivo legal hay que enseñar la mano y esperar a que pulses, o
-         Trap Dustshoot pasa en un parpadeo y parece que elige por ti. */
-      const miraLaManoRival = q.type===OCG.OcgMessageType.SELECT_CARD
-        && (q.selects||[]).some(s => s.location===2 && s.controller!==ME);
-      const auto = miraLaManoRival ? null : trivial(q);   // sin elección real → resolver solo
-      if(auto){ logIt("auto", {pregunta:msgName(q), respuesta:auto}); duel.respond(auto); continue; }
-      // Solo se salta la ventana de respuesta en TU turno y sin cadena en curso.
-      // Durante el turno rival hay que preguntar siempre: es cuando activas
-      // Call of the Haunted en su End Phase, Book of Moon en su ataque, etc.
-      /* Modo "sin cadenas": no te pregunta nada... salvo lo que sale de TU
-         cementerio. Si no, el retorno de Sinister Serpent se descartaba solo
-         cada turno y perdías la carta sin enterarte, que era la duda que
-         quedaba abierta con este modo. */
-      const disparadorDesdeGY = (q.selects||[]).some(sel => sel.location === 16);
-      if(q.type===OCG.OcgMessageType.SELECT_CHAIN && !q.forced
-         && chainMode==="nunca" && !disparadorDesdeGY){
-        duel.respond({type:OCG.OcgResponseType.SELECT_CHAIN,index:null}); continue;
-      }
-      // TRAMPA: saltarse la ventana entera se comía los disparadores propios.
-      // Sinister Serpent se ofrece a volver del cementerio en TU Standby Phase,
-      // y esto lo descartaba sin preguntar: la carta volvía un turno tarde,
-      // en la siguiente ventana que sí se preguntase. Lo delató el log del
-      // 2026-08-09 (T4 Standby ofrecía 511000818 y la respuesta era "no responder").
-      // En las tres partidas revisadas, lo ÚNICO que se ofrece desde el
-      // cementerio es Sinister Serpent; lo demás sale de la mano, de la zona
-      // de magias/trampas o del campo, y eso sí se puede saltar sin perder nada.
-      const disparadorPropio = q.type===OCG.OcgMessageType.SELECT_CHAIN
-        && (q.selects||[]).some(s => s.location === 16);   // 16 = cementerio
-      if(q.type===OCG.OcgMessageType.SELECT_CHAIN && !q.forced && !disparadorPropio
-         && chainMode==="auto" && !chainActive && duel.turnPlayer===ME){
-        logIt("auto",{pregunta:"SELECT_CHAIN (ventana propia sin cadena)",respuesta:"no responder"});
-        duel.respond({type:OCG.OcgResponseType.SELECT_CHAIN,index:null}); continue;
-      }
-      // las que se resuelven solas (colocar zona, ordenar…) no son
-      // preguntas de verdad: ensuciaban el log
-      if(!AUTO_KINDS.has(q.type)) logIt("te_pregunta", { pregunta:msgName(q), datos:resumen(q) });
-      return ask(q);
-    }
+    if(automatic){ logIt("auto", {pregunta:msgName(q), respuesta:automatic}); duel.respond(automatic); continue; }
+    if(handoffTo!==null) await handoff(handoffTo, q);
+    logIt("te_pregunta", { pregunta:msgName(q), datos:resumen(q) });
+    return ask(q);
   }
 }
 
-function handoff(player){
+function handoff(player, question){
   return new Promise(resolve=>{
     const cover=document.getElementById("handoff");
     const button=document.getElementById("handoff-ready");
     document.getElementById("handoff-player").textContent=`Player ${player+1}`;
+    document.getElementById("handoff-context").textContent=
+      question?.type===OCG.OcgMessageType.SELECT_CHAIN
+        ? `Response window during Player ${duel.turnPlayer+1}'s turn`
+        : duel.turnPlayer===player ? "Your turn" : `Decision during Player ${duel.turnPlayer+1}'s turn`;
     cover.hidden=false;
     button.onclick=()=>{
       ME=player;
