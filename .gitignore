@@ -8,4 +8,5 @@ build/
 data/
 checkpoints/
 .deploy.env
+/web/play.html
 

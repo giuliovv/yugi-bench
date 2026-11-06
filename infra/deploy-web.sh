@@ -7,6 +7,7 @@ BUCKET="yugi-bench-web-${ACCOUNT_ID}"
 OAC_NAME="yugi-bench-web-${ACCOUNT_ID}"
 COMMENT="Yugi Bench UI"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+node "$ROOT/infra/build-play.mjs"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 

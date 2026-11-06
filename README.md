@@ -1,15 +1,15 @@
 # GOAT Agent
 
-Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. The Python API now drives a real GOAT-mode ocgcore duel, but the training action space is not yet complete and the web UI is not yet connected to the engine.
+Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. The Python API and the local two-player browser game both use the pinned GOAT-mode ocgcore engine. The training action space is not yet complete.
 
-The static UI in `web/` is a scripted, interactive design prototype. It does not enforce card rules, connect to an engine, or train a model.
+The landing page's workbench is a scripted design prototype. `web/play.html` is a real, rules-validating, local hot-seat duel for two humans.
 
 ## Why this shape
 
 - **Rules engine:** a pinned [GOAT simulator](https://github.com/circlenline/goat-format-simulator) submodule supplies ocgcore, period card scripts, the card pool, and banlist. Our bridge runs it in `MODE_GOAT`; we do not reimplement card effects.
 - **Agent view:** each decision exposes only information that player may know, plus an explicit list of legal choices. Hidden opponent hand, deck order, and face-down identities never appear in observations or training logs.
 - **Replay:** seed, deck IDs, engine version, and chosen action IDs should reproduce a duel exactly. This supports debugging, regression tests, and offline training.
-- **UI later:** a DuelingBook-like board can be a human-play/debugging client of the same API, not the rules engine. We will not copy DuelingBook assets or code.
+- **Human UI:** a hot-seat browser client presents the GOAT simulator's legal prompts to both players. The same ocgcore mode validates card effects, chains, combat, and wins. We do not copy DuelingBook assets or code.
 
 ## GOAT scope
 
@@ -27,7 +27,7 @@ The dependency is pinned as a Git submodule and is AGPL-3.0-or-later. This repos
 
 1. Expand `automatic_choice` prompts into complete, bounded legal-action representations and add action-space tests.
 2. Validate more period rulings and expose match play (best of three with side decking) beyond single duels.
-3. Connect the web board to a session API; remove its scripted trace once the live board works.
+3. Add remote two-device multiplayer and match play; the current game is local hot-seat only.
 4. Collect expert games only with permission; train an imitation baseline, then self-play. Evaluate against fixed decks/seeds and held-out opponents, not just self-play win rate.
 
 ## Development
@@ -57,6 +57,20 @@ with OcgcoreGoatEngine() as engine:
         if result.terminated:
             break
 ```
+
+## Web game
+
+Build the self-contained game page from the pinned simulator and our hot-seat adapter:
+
+```sh
+git submodule update --init --recursive
+node infra/build-play.mjs
+python3 -m http.server 8000 -d web
+```
+
+Open `http://localhost:8000/play.html`. Pick a deck for each player, then hand the device over when the privacy screen appears. Player 1 starts. All card choices, phases, chains, and attacks are checked by ocgcore; there is no backend or account. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
+
+`hotseat/` adapts the [AGPL-licensed upstream browser client](https://github.com/circlenline/goat-format-simulator) for two humans; `infra/build-play.mjs` bundles it with the pinned core. Do not hand-edit generated `web/play.html`.
 
 ## Web prototype
 
