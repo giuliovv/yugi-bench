@@ -1,12 +1,12 @@
 # GOAT Agent
 
-Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. This repository is **not yet a playable simulator**. Its first milestone is a reliable, reproducible rules engine with an API suitable for self-play, imitation learning, and evaluation.
+Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. The Python API now drives a real GOAT-mode ocgcore duel, but the training action space is not yet complete and the web UI is not yet connected to the engine.
 
 The static UI in `web/` is a scripted, interactive design prototype. It does not enforce card rules, connect to an engine, or train a model.
 
 ## Why this shape
 
-- **Rules engine:** one authoritative implementation owns legality, card effects, chains, priority, victory, and randomness. Do not train on a manual UI's clicks as though they were legal game states.
+- **Rules engine:** a pinned [GOAT simulator](https://github.com/circlenline/goat-format-simulator) submodule supplies ocgcore, period card scripts, the card pool, and banlist. Our bridge runs it in `MODE_GOAT`; we do not reimplement card effects.
 - **Agent view:** each decision exposes only information that player may know, plus an explicit list of legal choices. Hidden opponent hand, deck order, and face-down identities never appear in observations or training logs.
 - **Replay:** seed, deck IDs, engine version, and chosen action IDs should reproduce a duel exactly. This supports debugging, regression tests, and offline training.
 - **UI later:** a DuelingBook-like board can be a human-play/debugging client of the same API, not the rules engine. We will not copy DuelingBook assets or code.
@@ -15,28 +15,48 @@ The static UI in `web/` is a scripted, interactive design prototype. It does not
 
 Use the [GOAT Format historical card pool and April 2005 TCG banlist](https://beta.goatformat.com/learn/goat-format-history) and its [2005 rulings](https://beta.goatformat.com/learn/rulings). In particular, the first player draws on turn one and 2005 priority matters. A modern Yu-Gi-Oh! engine is **not** automatically GOAT-correct.
 
-## Engine decision
+## Rules engine
 
-Before implementing hundreds of card effects, evaluate an existing engine such as [EDOPro's `ygopro-core`](https://github.com/edo9300/ygopro-core). Its AGPL-3.0-or-later license must be reviewed before integration or distribution. We currently vendor neither its code nor third-party card images/data. The adapter in `src/goat_agent/engine.py` is deliberately engine-agnostic.
+`OcgcoreGoatEngine` starts a fresh Node worker for each duel. It validates 40-60 card main decks against the bundled GOAT pool and April 2005 copy limits, accepts an unrestricted-size Fusion deck, seeds ocgcore, then returns immutable observations and legal action IDs. The core handles card effects, chains, priority, combat, and victory. The worker returns only the acting player's hand and private set-card identities; the opponent's hidden cards are masked from public views.
+
+High-level summon, set, activate, battle, chain, yes/no, and small card-selection prompts are enumerated. More complex prompts, such as multi-place selection and large card combinations, currently expose one `automatic_choice` backed by a deterministic baseline. **Do not train a final policy or claim full action coverage until these are enumerated.** The underlying duel still uses ocgcore's rules.
+
+The dependency is pinned as a Git submodule and is AGPL-3.0-or-later. This repository uses the same license; see `LICENSE`. Card names/data come from the upstream dependency; do not redistribute card artwork.
 
 ## Roadmap
 
-1. Select and license-check an engine and 2005 card scripts/database; pin exact versions.
-2. Build a GOAT conformance suite: deck legality, opening draw, phase transitions, chain timing/priority, battle, common card interactions, and match rules.
-3. Implement the adapter: legal action IDs, action masking, per-player observations, deterministic resets and replay; compare traces against known rulings.
-4. Add a simple human board and scripted baseline agents for sanity checks.
-5. Collect expert games only with permission; train an imitation baseline, then self-play. Evaluate against fixed decks/seeds and held-out opponents, not just self-play win rate.
+1. Expand `automatic_choice` prompts into complete, bounded legal-action representations and add action-space tests.
+2. Validate more period rulings and expose match play (best of three with side decking) beyond single duels.
+3. Connect the web board to a session API; remove its scripted trace once the live board works.
+4. Collect expert games only with permission; train an imitation baseline, then self-play. Evaluate against fixed decks/seeds and held-out opponents, not just self-play win rate.
 
 ## Development
 
 ```sh
+git submodule update --init --recursive
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -e '.[dev]'
-pytest
+bash infra/check-rules.sh
+python examples/smoke_duel.py --seed 42
 ```
 
-The tests currently cover the **interface contract**, not GOAT gameplay. No pretrained model or full card database is included.
+Requires Node 20+ for the bundled WASM core. The conformance script runs our Python tests and the pinned upstream historical-ruling, card, and mirror-sync checks. No pretrained model is included.
+
+Minimal API:
+
+```python
+from goat_agent import OcgcoreGoatEngine
+
+with OcgcoreGoatEngine() as engine:
+    observation = engine.reset(seed=42, decks=(deck_a, deck_b), extras=(fusion_a, fusion_b))
+    while observation.legal_actions:
+        action = observation.legal_actions[0]
+        result = engine.step(action.id)
+        observation = result.observation
+        if result.terminated:
+            break
+```
 
 ## Web prototype
 
@@ -52,4 +72,4 @@ The script is idempotent: it uses a private account-scoped S3 bucket in `eu-west
 
 ## References and rights
 
-GOAT rules: [GOAT Format](https://beta.goatformat.com/learn/goat-format-history). UI inspiration: [DuelingBook](https://www.duelingbook.com/). Card names, artwork, and game trademarks belong to their respective owners. Do not redistribute scraped card images or DuelingBook content.
+GOAT rules: [GOAT Format](https://beta.goatformat.com/learn/goat-format-history). Engine dependency: [Goat Format Simulator](https://github.com/circlenline/goat-format-simulator), [Project Ignis ocgcore](https://github.com/edo9300/ygopro-core). UI inspiration: [DuelingBook](https://www.duelingbook.com/). Card names, artwork, and game trademarks belong to their respective owners. Do not redistribute scraped card images or DuelingBook content.

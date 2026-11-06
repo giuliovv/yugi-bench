@@ -1,0 +1,3 @@
+[submodule "vendor/goat-format-simulator"]
+	path = vendor/goat-format-simulator
+	url = https://github.com/circlenline/goat-format-simulator.git

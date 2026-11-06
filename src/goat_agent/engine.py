@@ -6,7 +6,10 @@ from .model import Observation, StepResult
 
 
 class DuelEngine(Protocol):
-    def reset(self, seed: int, decks: tuple[tuple[int, ...], tuple[int, ...]]) -> Observation:
+    def reset(
+        self, seed: int, decks: tuple[tuple[int, ...], tuple[int, ...]],
+        extras: tuple[tuple[int, ...], tuple[int, ...]] | None = None,
+    ) -> Observation:
         """Start a duel; return the observation for the player with priority."""
 
     def step(self, action_id: str) -> StepResult:

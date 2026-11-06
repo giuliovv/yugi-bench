@@ -1,0 +1,21 @@
+name: GOAT rules
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  conformance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: python -m pip install -e '.[dev]'
+      - run: bash infra/check-rules.sh > /tmp/goat-rules.log && tail -35 /tmp/goat-rules.log

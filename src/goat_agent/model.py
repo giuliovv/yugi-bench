@@ -64,6 +64,8 @@ class Observation:
     public: PublicState
     own_hand: tuple[int, ...]
     legal_actions: tuple[Action, ...]
+    own_face_down: tuple[tuple[str, int], ...] = ()
+    own_extra: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         if self.player not in (0, 1):
