@@ -83,7 +83,22 @@ python examples/train_selfplay.py --warmup-games 4 --selfplay-games 20 --eval-ga
 python examples/train_selfplay.py --resume --warmup-games 0 --selfplay-games 20 --eval-games 4 --max-decisions 1500
 ```
 
-Checkpoints and per-game JSONL metrics go to `checkpoints/` by default and are not committed. The log reports `fallback_decisions`; these are choices the current Python action bridge did **not** expose to the model. Truncated games do not receive a fabricated win/loss reward or count toward the evaluation win rate. The smoke run at 500 decisions had roughly 20% fallback decisions and two of three games truncated, so these numbers are **pipeline validation, not evidence of playing strength**. Expand the action bridge and run longer, held-out-deck evaluations before drawing strategy conclusions. The model is not connected to the browser game yet.
+Checkpoints and per-game JSONL metrics go to `checkpoints/` by default and are not committed. The log reports `fallback_decisions`; these are choices the current Python action bridge did **not** expose to the model. Truncated games do not receive a fabricated win/loss reward or count toward the evaluation win rate. Expand the action bridge and run longer, held-out-deck evaluations before drawing strategy conclusions.
+
+### Play against the smoke model
+
+The repository includes `models/smoke_policy.npz`, trained on a temporary CPU Spot instance with 2 heuristic warmup games and 4 self-play games (seed 42, two bundled decks). It won 1 of 2 evaluation games against the weak heuristic; this is **not** evidence of competitive strength. Play against it locally in a terminal:
+
+```sh
+git submodule update --init --recursive
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -e '.[train]'
+python examples/play_vs_model.py --list-decks
+python examples/play_vs_model.py --human-deck 0 --bot-deck 1
+```
+
+Requires Node 20+ and Python 3.10+. Enter the number of a legal action; `q` quits. The terminal shows your hand and field, the opponent's public field and LP, and masks face-down opponent cards. `--human-seat 1` lets the bot start; `--checkpoint` selects another model. The bot takes deterministic highest-probability actions. Complex prompts marked `automatic_choice` are still resolved by the bridge's fixed policy, so the model does not control those choices. The browser game remains human-vs-human; the trained model is **not** wired into that UI yet.
 
 ## Web prototype
 
