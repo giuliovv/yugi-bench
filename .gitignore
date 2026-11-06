@@ -9,4 +9,5 @@ data/
 checkpoints/
 .deploy.env
 /web/play.html
+/web/bot.html
 

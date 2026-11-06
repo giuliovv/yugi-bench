@@ -2,7 +2,7 @@
 
 Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. The Python API and the local two-player browser game both use the pinned GOAT-mode ocgcore engine. The training action space is not yet complete.
 
-The landing page's workbench is a scripted design prototype. `web/play.html` is a real, rules-validating, local hot-seat duel for two humans.
+The landing page's workbench is a scripted design prototype. `web/play.html` is a rules-validating hot-seat duel for two humans; `web/bot.html` is a rules-validating browser duel against the trained smoke model.
 
 ## Why this shape
 
@@ -41,7 +41,7 @@ bash infra/check-rules.sh
 python examples/smoke_duel.py --seed 42
 ```
 
-Requires Node 20+ for the bundled WASM core. The conformance script runs our Python tests and the pinned upstream historical-ruling, card, and mirror-sync checks. No pretrained model is included.
+Requires Node 20+ for the bundled WASM core. The conformance script runs our Python tests and the pinned upstream historical-ruling, card, and mirror-sync checks. A small smoke-test checkpoint is included; it is not a validated competitive model.
 
 Minimal API:
 
@@ -98,7 +98,17 @@ python examples/play_vs_model.py --list-decks
 python examples/play_vs_model.py --human-deck 0 --bot-deck 1
 ```
 
-Requires Node 20+ and Python 3.10+. Enter the number of a legal action; `q` quits. The terminal shows your hand and field, the opponent's public field and LP, and masks face-down opponent cards. `--human-seat 1` lets the bot start; `--checkpoint` selects another model. The bot takes deterministic highest-probability actions. Complex prompts marked `automatic_choice` are still resolved by the bridge's fixed policy, so the model does not control those choices. The browser game remains human-vs-human; the trained model is **not** wired into that UI yet.
+Requires Node 20+ and Python 3.10+. Enter the number of a legal action; `q` quits. The terminal shows your hand and field, the opponent's public field and LP, and masks face-down opponent cards. `--human-seat 1` lets the bot start; `--checkpoint` selects another model. The bot takes deterministic highest-probability actions. Complex prompts marked `automatic_choice` are still resolved by the bridge's fixed policy, so the model does not control those choices.
+
+The same checkpoint is exported to `models/smoke_policy.json` for `web/bot.html`. Its feature hashes and chosen actions are tested against Python fixtures from real duels. The browser page packages the **same** training bridge and GOAT rules core, runs locally with no backend, and offers deck and first-player selection. Its UI is a compact card-and-action board, separate from the richer two-player hot-seat UI. To build both static pages locally:
+
+```sh
+node infra/build-play.mjs
+node infra/build-bot.mjs
+python3 -m http.server 8000 -d web
+```
+
+Open `http://localhost:8000/bot.html`. After retraining, run `python3 infra/export-policy.py` and rebuild before deploying. This model is a smoke-test opponent, not a competitive agent.
 
 ## Web prototype
 

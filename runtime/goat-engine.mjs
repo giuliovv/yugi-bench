@@ -9,6 +9,7 @@ import { makeAutoPlayer } from "../vendor/goat-format-simulator/engine/browser/s
 
 const base = new URL("../vendor/goat-format-simulator/engine/", import.meta.url);
 const read = path => JSON.parse(readFileSync(new URL(path, base), "utf8"));
+// BEGIN_SHARED_BRIDGE: bundled verbatim into the static browser opponent.
 const cardData = read("browser/out/cards.subset.json");
 const names = read("browser/out/names.subset.json");
 const pool = new Set(read("data/goat-pool.json").map(Number));
@@ -267,6 +268,7 @@ async function step({ action_id }) {
   return advance();
 }
 
+// END_SHARED_BRIDGE
 for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
   try {
     const command = JSON.parse(line);
