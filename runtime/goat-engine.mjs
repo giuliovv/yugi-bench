@@ -27,6 +27,27 @@ let pending;
 let actions = new Map();
 let winner = null;
 let coreErrors = [];
+let revealed = new Set();
+
+function visibleChoiceCode(prompt, reference) {
+  const code = reference.code;
+  if (!code) return null;
+  const owner = reference.controller ?? prompt.player;
+  const location = reference.location;
+  if (owner === prompt.player || location === LOC.GRAVE) return code;
+  const card = duel.zones[owner]?.[location]?.[reference.sequence];
+  if (!card || card.code !== code) return null;
+  if (location === LOC.HAND) return revealed.has(card.uid) ? code : null;
+  if ([LOC.MZONE, LOC.SZONE, LOC.FZONE, LOC.REMOVED].includes(location)) {
+    return !(card.position & 0x0a) ? code : null;
+  }
+  return null;
+}
+
+const choiceName = (prompt, reference) => {
+  const code = visibleChoiceCode(prompt, reference);
+  return code === null ? "Hidden card" : name(code);
+};
 
 function validateDecks(decks, extras) {
   if (!Array.isArray(decks) || decks.length !== 2) throw new Error("exactly two decks are required");
@@ -56,14 +77,16 @@ function validateDecks(decks, extras) {
 
 function choiceList(prompt) {
   const out = [];
-  const add = (kind, label, response) => {
+  const add = (kind, label, response, cardIds = []) => {
     const id = String(out.length);
-    out.push({ id, kind, label });
+    out.push({ id, kind, label, card_ids: cardIds });
     actions.set(id, response);
   };
   const indexed = (key, kind, action, type) => {
     for (const [index, card] of (prompt[key] ?? []).entries()) {
-      add(kind, `${kind.replaceAll("_", " ")} ${name(card.code)}`, { type, action, index });
+      const code = visibleChoiceCode(prompt, card);
+      add(kind, `${kind.replaceAll("_", " ")} ${choiceName(prompt, card)}`,
+        { type, action, index }, code === null ? [] : [code]);
     }
   };
   actions = new Map();
@@ -85,7 +108,11 @@ function choiceList(prompt) {
       if (prompt.to_ep) add("end_turn", "End turn", { type: R.SELECT_BATTLECMD, action: BA.TO_EP, index: null });
       break;
     case T.SELECT_CHAIN:
-      (prompt.selects ?? []).forEach((card, index) => add("chain", `Chain ${name(card.code)}`, { type: R.SELECT_CHAIN, index }));
+      (prompt.selects ?? []).forEach((card, index) => {
+        const code = visibleChoiceCode(prompt, card);
+        add("chain", `Chain ${choiceName(prompt, card)}`, { type: R.SELECT_CHAIN, index },
+          code === null ? [] : [code]);
+      });
       if (!prompt.forced) add("pass", "Do not chain", { type: R.SELECT_CHAIN, index: null });
       break;
     case T.SELECT_EFFECTYN:
@@ -124,7 +151,9 @@ function choiceList(prompt) {
       }
       const visit = (start, chosen, size) => {
         if (chosen.length === size) {
-          add("select_cards", chosen.map(i => name(selects[i].code)).join(", ") || "Select none", { type, indicies: chosen });
+          const codes = chosen.map(i => visibleChoiceCode(prompt, selects[i]));
+          add("select_cards", chosen.map(i => choiceName(prompt, selects[i])).join(", ") || "Select none",
+            { type, indicies: chosen }, codes.filter(code => code !== null));
           return;
         }
         for (let i = start; i <= selects.length - (size - chosen.length); i++) visit(i + 1, [...chosen, i], size);
@@ -217,10 +246,13 @@ async function reset({ seed, decks, extras = [[], []] }) {
   validateDecks(decks, extras);
   winner = null;
   coreErrors = [];
+  revealed = new Set();
   const lib = await X.default({ sync: true });
   duel = new GoatDuel({ lib, X, cardDb: cards, scriptReader, onEvent: event => {
     if (event.t === "win") winner = event.player;
     if (event.t === "coreError") coreErrors.push(event.text);
+    if (event.t === "revelar") for (const uid of event.uids) revealed.add(uid);
+    if (event.t === "chainEnd") revealed.clear();
   } });
   const start = BigInt(seed);
   await duel.create({ deck0: decks[0], deck1: decks[1], extra0: extras[0], extra1: extras[1],

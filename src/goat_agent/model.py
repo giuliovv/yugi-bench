@@ -47,15 +47,16 @@ class PublicState:
 
 @dataclass(frozen=True)
 class Action:
-    """Engine-issued stable ID plus display-only metadata.
+    """Engine-issued ID plus legal, player-visible action metadata.
 
-    The agent selects by ID. A future engine adapter supplies its full action
-    set, including target, position, and chain-response choices.
+    The agent selects by ID. card_ids describe cards named by this legal
+    choice; they are not an opponent-state observation.
     """
 
     id: str
     kind: str
     label: str
+    card_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -22,6 +22,8 @@ def test_goat_opening_draw_and_hidden_hand() -> None:
         assert observation.public.players[1].hand_count == 5
         assert not hasattr(observation.public.players[1], "hand")
         assert observation.legal_actions
+        assert any(action.card_ids and action.card_ids[0] in DECK
+                   for action in observation.legal_actions)
 
 
 def test_deterministic_reset_and_legal_action() -> None:

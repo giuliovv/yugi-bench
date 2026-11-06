@@ -46,7 +46,8 @@ def _observation(data: dict[str, Any]) -> Observation:
             players=tuple(map(_player, public["players"])),
         ),
         own_hand=tuple(data["own_hand"]),
-        legal_actions=tuple(Action(**action) for action in data["legal_actions"]),
+        legal_actions=tuple(Action(**{**action, "card_ids": tuple(action.get("card_ids", ()))})
+                            for action in data["legal_actions"]),
         own_face_down=tuple((uid, code) for uid, code in data["own_face_down"]),
         own_extra=tuple(data["own_extra"]),
     )

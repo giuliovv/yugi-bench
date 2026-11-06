@@ -72,6 +72,19 @@ Open `http://localhost:8000/play.html`. Pick a deck for each player, then hand t
 
 `hotseat/` adapts the [AGPL-licensed upstream browser client](https://github.com/circlenline/goat-format-simulator) for two humans; `infra/build-play.mjs` bundles it with the pinned core. Do not hand-edit generated `web/play.html`.
 
+## Small self-play baseline
+
+The optional `train` extra adds NumPy, not a GPU framework. A 64-unit policy/value network scores each legal action from the acting player's observation; it cannot read hidden opponent cards. Variable action lists are handled by scoring candidates individually. Legal action card IDs are features; arbitrary action IDs are **not**. First it imitates a weak hand-written policy, then uses completed self-play duels and terminal win/loss rewards. Evaluation plays against that heuristic with alternating seats.
+
+```sh
+pip install -e '.[train]'
+python examples/train_selfplay.py --warmup-games 4 --selfplay-games 20 --eval-games 4 --max-decisions 1500
+# Continue with new seeds, appending metrics to the same run:
+python examples/train_selfplay.py --resume --warmup-games 0 --selfplay-games 20 --eval-games 4 --max-decisions 1500
+```
+
+Checkpoints and per-game JSONL metrics go to `checkpoints/` by default and are not committed. The log reports `fallback_decisions`; these are choices the current Python action bridge did **not** expose to the model. Truncated games do not receive a fabricated win/loss reward or count toward the evaluation win rate. The smoke run at 500 decisions had roughly 20% fallback decisions and two of three games truncated, so these numbers are **pipeline validation, not evidence of playing strength**. Expand the action bridge and run longer, held-out-deck evaluations before drawing strategy conclusions. The model is not connected to the browser game yet.
+
 ## Web prototype
 
 Open `web/index.html` locally, or serve it with `python3 -m http.server 8000 -d web`. Select sample actions to inspect how a future engine's player observation, action list, and decision trace will fit together. Card panels are original placeholders, not Yu-Gi-Oh! artwork.
