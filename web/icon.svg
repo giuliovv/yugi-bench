@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Yugi Bench">
+  <rect width="512" height="512" rx="100" fill="#111c20"/>
+  <rect x="76" y="76" width="360" height="360" rx="56" fill="none" stroke="#d4a958" stroke-width="12"/>
+  <path d="M143 163h39l58 85 58-85h39l-79 117v78h-37v-78z" fill="#f1eee5"/>
+  <path d="M318 236h39c31 0 48 14 48 36 0 15-8 25-22 30 18 4 28 16 28 34 0 24-19 39-52 39h-41zm36 27v27h8c11 0 17-5 17-14 0-8-6-13-17-13zm0 52v31h10c13 0 20-5 20-15s-7-16-20-16z" fill="#d4a958"/>
+  <path d="M128 390h256" stroke="#d4a958" stroke-width="8" stroke-linecap="round"/>
+</svg>

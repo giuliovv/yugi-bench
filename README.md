@@ -65,10 +65,14 @@ Build the self-contained game page from the pinned simulator and our hot-seat ad
 ```sh
 git submodule update --init --recursive
 node infra/build-play.mjs
+node infra/build-bot.mjs
+node infra/build-pwa.mjs
 python3 -m http.server 8000 -d web
 ```
 
 Open `http://localhost:8000/play.html`. Choose **Play against the model** or **Play two-player duel**, then select both decks. In model mode, you are Player 1 and the smoke model controls Player 2 on the same full board; there is no handoff screen. In two-player mode, pass the device when the privacy screen appears. All card choices, phases, chains, and attacks are checked by ocgcore; there is no backend or account. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
+
+The site is installable as a PWA from its HTTPS CloudFront URL (or localhost). In Chrome/Edge, use **Install app** in the browser menu; on iPhone/iPad, use **Share → Add to Home Screen**. The game pages and local assets are available offline after the service worker finishes caching them. External card artwork needs a connection; card text fallbacks remain available. The service worker fetches fresh same-origin files when online and uses its cache only when offline. Rebuild `web/sw.js` with `node infra/build-pwa.mjs` after changing any web asset.
 
 `hotseat/` adapts the [AGPL-licensed upstream browser client](https://github.com/circlenline/goat-format-simulator); `infra/build-play.mjs` bundles it with the pinned core, the same policy weights as the compact board, and the training bridge's legal-action mapping. Do not hand-edit generated `web/play.html`.
 
@@ -105,6 +109,7 @@ The same checkpoint is exported to `models/smoke_policy.json` for both browser b
 ```sh
 node infra/build-play.mjs
 node infra/build-bot.mjs
+node infra/build-pwa.mjs
 python3 -m http.server 8000 -d web
 ```
 
@@ -120,7 +125,7 @@ To deploy to AWS from an identity with S3 and CloudFront permissions:
 bash infra/deploy-web.sh
 ```
 
-The script is idempotent: it uses a private account-scoped S3 bucket in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. It prints the distribution URL. No public S3 access or custom domain is required.
+The script is idempotent: it uses a private account-scoped S3 bucket in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. It publishes the new service worker only after the game assets are available at the edge. It prints the distribution URL. No public S3 access or custom domain is required.
 
 ## References and rights
 

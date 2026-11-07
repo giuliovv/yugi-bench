@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Yugi Bench | GOAT Duel",
+  "short_name": "Yugi Bench",
+  "description": "Play a rules-valid GOAT-format duel against a model or a friend.",
+  "start_url": "./play.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111c20",
+  "theme_color": "#111c20",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
