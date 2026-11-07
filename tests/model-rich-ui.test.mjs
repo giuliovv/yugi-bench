@@ -11,6 +11,9 @@ test("rich board's bundled model plays legal actions in a real duel", async () =
   assert.match(html, /id="irModelo"/);
   assert.match(html, /id="irJugar"/);
   assert.match(html, /id="irLLM"/);
+  assert.match(html, /<select id="llmModel"><\/select>/);
+  assert.match(html, /claude-sonnet-5-5/);
+  assert.match(html, /claude-opus-5-5/);
   const script = html.split('<script type="module">')[1].split("</script>")[0];
   const bundled = script.slice(0, script.indexOf("const CARDS ="));
   const { createModelAdapter, GoatDuel, LOC, Policy, MODEL_WEIGHTS, __OCG__,

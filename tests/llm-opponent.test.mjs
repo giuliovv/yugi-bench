@@ -33,16 +33,34 @@ test("Anthropic relay and invalid model choices", async () => {
   let request;
   const good = await handleRequest(event("anthropic"), async (url, options) => {
     request = { url, options };
-    return { ok: true, json: async () => ({ content: [{ type: "text",
+    return { ok: true, json: async () => ({ content: [{ type: "thinking", thinking: "private" }, { type: "text",
       text: '{"action_id":"0"}' }] }) };
   });
   assert.equal(good.statusCode, 200);
   assert.equal(request.url, "https://api.anthropic.com/v1/messages");
   assert.equal(request.options.headers["x-api-key"], "test-key-not-real");
+  assert.equal(request.options.headers["anthropic-version"], "2026-10-21");
+  const anthropicBody = JSON.parse(request.options.body);
+  assert.equal(anthropicBody.max_tokens, 1024);
+  assert.equal(anthropicBody.output_config.effort, "low");
+  assert.equal(anthropicBody.output_config.format.type, "json_schema");
   const illegal = await handleRequest(event(), async () => ({ ok: true, json: async () => ({
     output: [{ content: [{ type: "output_text", text: '{"action_id":"999"}' }] }],
   }) }));
   assert.equal(illegal.statusCode, 422);
+});
+
+test("truncated and empty Claude responses explain the failure", async () => {
+  const truncated = await handleRequest(event("anthropic"), async () => ({
+    ok: true, json: async () => ({ stop_reason: "max_tokens", content: [{ type: "thinking" }] }),
+  }));
+  assert.equal(truncated.statusCode, 502);
+  assert.match(JSON.parse(truncated.body).error, /output tokens/);
+  const empty = await handleRequest(event("anthropic"), async () => ({
+    ok: true, json: async () => ({ stop_reason: "end_turn", content: [] }),
+  }));
+  assert.equal(empty.statusCode, 502);
+  assert.match(JSON.parse(empty.body).error, /no choice text/);
 });
 
 test("relay rejects bad input and sanitizes provider errors", async () => {

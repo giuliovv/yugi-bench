@@ -454,6 +454,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
 #menu input.llm-input{width:100%;padding:11px;background:#121b2e;border:1px solid var(--edge);
   color:#cfe0f7;font-size:13px;font-family:inherit;box-sizing:border-box}
 #menu input.llm-input:focus{outline:none;border-color:var(--gold)}
+#menu [hidden]{display:none!important}
 #menu .mnota{font-size:11.5px;color:#7d94b5;line-height:1.6;margin-top:8px}
 #menu .mbig{width:100%;margin-top:12px;padding:15px;font-size:14px;font-weight:700;
   letter-spacing:.2em;text-transform:uppercase;cursor:pointer;color:#080c16;
@@ -922,8 +923,9 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
         <label class="mlab" for="llmProvider">API provider</label>
         <select id="llmProvider"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select>
         <label class="mlab" for="llmModel">Model</label>
-        <input class="llm-input" id="llmModel" list="llmModels" value="gpt-5.4-mini" spellcheck="false" autocomplete="off">
-        <datalist id="llmModels"></datalist>
+        <select id="llmModel"></select>
+        <label class="mlab" for="llmCustomModel" id="llmCustomModelLabel" hidden>Custom model ID</label>
+        <input class="llm-input" id="llmCustomModel" spellcheck="false" autocomplete="off" placeholder="Provider model ID" hidden>
         <label class="mlab" for="llmApiKey">Your API key</label>
         <input class="llm-input" id="llmApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste a provider API key">
         <p class="mnota">Your key passes through our stateless AWS relay to the provider on each move. It is not saved in this app, but avoid using a high-limit key. Up to 120 paid requests per duel; automatic rule prompts use no API call.</p>
@@ -1183,10 +1185,19 @@ document.getElementById("irLLM").onclick=()=>chooseOpponent("llm");
 const llmModels={openai:["gpt-5.4-mini","gpt-5.4-nano","gpt-5.4"],
   anthropic:["claude-haiku-5-5","claude-sonnet-5-5","claude-opus-5-5"]};
 const llmProvider=document.getElementById("llmProvider");
+const llmModel=document.getElementById("llmModel");
+const llmCustomModel=document.getElementById("llmCustomModel");
+llmModel.onchange=()=>{
+  const custom=llmModel.value==="custom";
+  llmCustomModel.hidden=!custom;
+  document.getElementById("llmCustomModelLabel").hidden=!custom;
+};
 llmProvider.onchange=()=>{
   const models=llmModels[llmProvider.value];
-  document.getElementById("llmModel").value=models[0];
-  document.getElementById("llmModels").innerHTML=models.map(m=>`<option value="${m}"></option>`).join("");
+  llmModel.innerHTML=models.map(m=>`<option value="${m}">${m}</option>`).join("")+
+    '<option value="custom">Other model ID…</option>';
+  llmModel.value=models[0];
+  llmModel.onchange();
 };
 llmProvider.onchange();
 /* Un solo camino para empezar un duelo: lo usan "Duelo VS" y el modo bots.
@@ -1194,7 +1205,8 @@ llmProvider.onchange();
    intentando (para apuntar la victoria en el progreso). */
 function lanzarDuelo(opciones={}){
   const llm=opciones.opponent==="llm" ? {
-    provider:llmProvider.value, model:document.getElementById("llmModel").value.trim(),
+    provider:llmProvider.value,
+    model:(llmModel.value==="custom" ? llmCustomModel.value : llmModel.value).trim(),
     apiKey:document.getElementById("llmApiKey").value.trim() } : null;
   if(llm && (!LLM_ENDPOINT || !llm.model || !llm.apiKey)){
     alert("Enter an API key and model. LLM relay must be deployed."); return;
