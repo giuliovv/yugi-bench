@@ -24,6 +24,22 @@ core = core.replace(/export\{[^}]*\}\s*;?\s*$/m,
   `return {${pairs.map(p=>`${p.ext==="default"?"createCore":p.ext}:${p.local}`).join(",")}};`);
 
 const iife = (body, returns) => `(()=>{\n${body}\nreturn {${returns}};\n})()`;
+const sharedSource = readFileSync(resolve(root,"runtime/goat-engine.mjs"),"utf8");
+const between = (start,end) => {
+  const from=sharedSource.indexOf(start), to=sharedSource.indexOf(end);
+  if(from<0 || to<=from) throw new Error(`missing bridge markers: ${start} / ${end}`);
+  return sharedSource.slice(from+start.length,to);
+};
+const decisionSource = between("// BEGIN_DECISION_VISIBILITY","// END_DECISION_VISIBILITY")
+  + between("// BEGIN_DECISION_ACTIONS","// END_DECISION_ACTIONS");
+const modelAdapter = `const createModelAdapter = ({duel,X,names,LOC,automatic})=>{\n`+
+  `const T=X.OcgMessageType,R=X.OcgResponseType,IA=X.SelectIdleCMDAction,BA=X.SelectBattleCMDAction;\n`+
+  `const name=code=>names[code]?.name ?? \`Card #\${code}\`;\n`+
+  `let pending=null,actions=new Map(),revealed=new Set(),winner=null,coreErrors=[];\n`+
+  decisionSource+`\nreturn {describe(prompt){pending=prompt;return state().observation;},`+
+  `response(id){if(!actions.has(id))throw new Error(\`illegal model action: \${id}\`);return actions.get(id);},`+
+  `onEvent(event){if(event.t==="revelar")for(const uid of event.uids)revealed.add(uid);`+
+  `if(event.t==="chainEnd")revealed.clear();}};\n};`;
 
 const parts = [
 `${stripExports(R("./out/cardback.js"))}`,
@@ -32,9 +48,12 @@ const parts = [
 `const {T:__T_, setIdioma:__setIdioma, traducirDOM:__traducirDOM} = I18N;`,
 `const __OCG__ = (()=>{\n${core}\n})();`,
 `const {SCRIPTS, scriptReader} = ${iife(stripExports(R("./out/scripts.bundle.js")), "SCRIPTS, scriptReader")};`,
-`const {GoatDuel} = ${iife(stripExports(R("./src/duel.mjs")), "GoatDuel")};`,
+`const {GoatDuel, LOC} = ${iife(stripExports(R("./src/duel.mjs")), "GoatDuel, LOC")};`,
 `const {makeAutoPlayer} = ${iife(stripExports(R("./src/autopilot.mjs")), "makeAutoPlayer")};`,
 `const {makeTrivialResolver} = ${iife(stripExports(R("./src/trivial.js")), "makeTrivialResolver")};`,
+`const Policy = ${iife(stripExports(readFileSync(resolve(root,"runtime/browser-policy.js"),"utf8")), "chooseAction")};`,
+`const MODEL_WEIGHTS = ${readFileSync(resolve(root,"models/smoke_policy.json"),"utf8")};`,
+modelAdapter,
 `const {crearCerebro, NIVELES} = ${iife(juntarIA(), "crearCerebro, NIVELES")};`,
 `const View = ${iife(stripExports(R("./src/view.js")),
    "initView, setPerspective, sorteo, setControles, markAtacadas, setImages, announcePhase, markUsable, moverEnMano, previaSuelta, quitarPrevia, confirmar, revelar, ocultarReveladas, setMomento, momento, momentoTexto, pantallaFinal, alHistorial, fitBoard, openZoneView, closeZoneView, setZoneViewClose, setZoneViewHandler, layoutAll, setHandlers, markTargets, markDraggable, showDetail, choiceMenu, closeChoice, toast, banner, setLP, setPhase, flash, popDamage, telegraphAttack, animateBattle, glow, sleep")};`,

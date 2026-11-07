@@ -30,6 +30,7 @@ let winner = null;
 let coreErrors = [];
 let revealed = new Set();
 
+// BEGIN_DECISION_VISIBILITY
 function visibleChoiceCode(prompt, reference) {
   const code = reference.code;
   if (!code) return null;
@@ -49,6 +50,7 @@ const choiceName = (prompt, reference) => {
   const code = visibleChoiceCode(prompt, reference);
   return code === null ? "Hidden card" : name(code);
 };
+// END_DECISION_VISIBILITY
 
 function validateDecks(decks, extras) {
   if (!Array.isArray(decks) || decks.length !== 2) throw new Error("exactly two decks are required");
@@ -76,6 +78,7 @@ function validateDecks(decks, extras) {
   }
 }
 
+// BEGIN_DECISION_ACTIONS
 function choiceList(prompt) {
   const out = [];
   const add = (kind, label, response, cardIds = []) => {
@@ -229,6 +232,7 @@ function state() {
     core_errors: coreErrors
   };
 }
+// END_DECISION_ACTIONS
 
 async function advance() {
   for (let i = 0; i < 500; i++) {

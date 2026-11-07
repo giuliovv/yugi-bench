@@ -6,6 +6,7 @@
    ════════════════════════════════════════════════════════════ */
 let ME = 0;
 let duel, decideAI, trivial, OCG, V, NAMES, DB;
+let modelAdapter = null, modelDecisions = 0;
 let chainMode = "always", chainActive = false;
 let nivelBot = "duro", cerebro = null;
 /* Decisiones que se resuelven solas y nunca se te muestran: colocar en
@@ -68,7 +69,7 @@ function logIt(kind, data){
              fase:PHNAME[duel?.phase]??"", kind, data });
   if(LOG.length>6000) LOG.splice(0,2000);
 }
-const queue=[]; const onEvent = e => { logIt("evento", e); queue.push(e); };
+const queue=[]; const onEvent = e => { modelAdapter?.onEvent(e); logIt("evento", e); queue.push(e); };
 const nm = c => (NAMES[c]?.name ?? "#"+c);
 
 async function drain(){
@@ -660,6 +661,16 @@ async function loopInterno(){
     if(ended||duel.finished) return;
     if(!q) return;
     if(automatic){ logIt("auto", {pregunta:msgName(q), respuesta:automatic}); duel.respond(automatic); continue; }
+    if(CONFIG?.opponent==="model" && q.player===1){
+      const observation=modelAdapter.describe(q);
+      const choice=Policy.chooseAction(observation,MODEL_WEIGHTS);
+      const action=observation.legal_actions[choice];
+      logIt("model_chooses", {kind:action.kind, action_id:action.id});
+      duel.respond(modelAdapter.response(action.id));
+      if(++modelDecisions>3000) throw new Error("Model exceeded 3000 decisions; download the log to investigate.");
+      if(modelDecisions%8===0) await new Promise(resolve=>setTimeout(resolve,0));
+      continue;
+    }
     if(handoffTo!==null) await handoff(handoffTo, q);
     logIt("te_pregunta", { pregunta:msgName(q), datos:resumen(q) });
     return ask(q);
@@ -703,6 +714,9 @@ export async function boot({ createCore, Xns, GoatDuel, makeAutoPlayer, makeTriv
   const lib=await createCore({sync:true});
   duel=new GoatDuel({ lib, X:OCG, cardDb, scriptReader, onEvent });
   decideAI=makeAutoPlayer(OCG); trivial=makeTrivialResolver(OCG);
+  modelAdapter=config?.opponent==="model"
+    ? createModelAdapter({duel,X:OCG,names,LOC,automatic:decideAI}) : null;
+  modelDecisions=0;
   if(config?.nivel && NIVELES.includes(config.nivel)) nivelBot = config.nivel;
   chainMode = "always";
   CHAIN_TIMEOUT = 0;
@@ -711,8 +725,10 @@ export async function boot({ createCore, Xns, GoatDuel, makeAutoPlayer, makeTriv
      dejaba el tablero espejado y a la IA jugando en TU sitio. */
   ME = 0;
   View.initView({ duel, db:cardDb, names, me:ME, images:true });
-  document.getElementById("nomMe").textContent="Player 1";
-  document.getElementById("nomOpp").textContent="Player 2";
+  document.getElementById("modeBrand").textContent=config?.opponent==="model"
+    ? "Yugi Bench · GOAT vs model" : "Yugi Bench · Two-player GOAT";
+  document.getElementById("nomMe").textContent=config?.opponent==="model" ? "You" : "Player 1";
+  document.getElementById("nomOpp").textContent=config?.opponent==="model" ? "Model" : "Player 2";
   const ZL={gy:16, extra:64, banish:32};
   View.setZoneViewHandler((owner, zone)=>{
     // cementerio y desterradas son información pública; el Extra Deck del
@@ -798,6 +814,6 @@ export async function boot({ createCore, Xns, GoatDuel, makeAutoPlayer, makeTriv
     seed:[BigInt(SEED), 7n, 13n, 29n] });
   View.layoutAll(true);
   document.getElementById("boot").style.display="none";
-  await handoff(0);
+  if(config?.opponent!=="model") await handoff(0);
   await loop();
 }

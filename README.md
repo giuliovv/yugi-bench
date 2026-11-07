@@ -2,7 +2,7 @@
 
 Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. The Python API and the local two-player browser game both use the pinned GOAT-mode ocgcore engine. The training action space is not yet complete.
 
-The landing page's workbench is a scripted design prototype. `web/play.html` is a rules-validating hot-seat duel for two humans; `web/bot.html` is a rules-validating browser duel against the trained smoke model.
+The landing page's workbench is a scripted design prototype. `web/play.html` is the full rules-validating board for either a human-vs-model or local two-player duel; `web/bot.html` is a compact model-duel board.
 
 ## Why this shape
 
@@ -68,9 +68,9 @@ node infra/build-play.mjs
 python3 -m http.server 8000 -d web
 ```
 
-Open `http://localhost:8000/play.html`. Pick a deck for each player, then hand the device over when the privacy screen appears. Player 1 starts. All card choices, phases, chains, and attacks are checked by ocgcore; there is no backend or account. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
+Open `http://localhost:8000/play.html`. Choose **Play against the model** or **Play two-player duel**, then select both decks. In model mode, you are Player 1 and the smoke model controls Player 2 on the same full board; there is no handoff screen. In two-player mode, pass the device when the privacy screen appears. All card choices, phases, chains, and attacks are checked by ocgcore; there is no backend or account. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
 
-`hotseat/` adapts the [AGPL-licensed upstream browser client](https://github.com/circlenline/goat-format-simulator) for two humans; `infra/build-play.mjs` bundles it with the pinned core. Do not hand-edit generated `web/play.html`.
+`hotseat/` adapts the [AGPL-licensed upstream browser client](https://github.com/circlenline/goat-format-simulator); `infra/build-play.mjs` bundles it with the pinned core, the same policy weights as the compact board, and the training bridge's legal-action mapping. Do not hand-edit generated `web/play.html`.
 
 ## Small self-play baseline
 
@@ -100,7 +100,7 @@ python examples/play_vs_model.py --human-deck 0 --bot-deck 1
 
 Requires Node 20+ and Python 3.10+. Enter the number of a legal action; `q` quits. The terminal shows your hand and field, the opponent's public field and LP, and masks face-down opponent cards. `--human-seat 1` lets the bot start; `--checkpoint` selects another model. The bot takes deterministic highest-probability actions. Complex prompts marked `automatic_choice` are still resolved by the bridge's fixed policy, so the model does not control those choices.
 
-The same checkpoint is exported to `models/smoke_policy.json` for `web/bot.html`. Its feature hashes and chosen actions are tested against Python fixtures from real duels. The browser page packages the **same** training bridge and GOAT rules core, runs locally with no backend, and offers deck and first-player selection. Its UI is a compact card-and-action board, separate from the richer two-player hot-seat UI. To build both static pages locally:
+The same checkpoint is exported to `models/smoke_policy.json` for both browser boards. Its feature hashes and chosen actions are tested against Python fixtures from real duels. The compact `web/bot.html` packages the **same** training bridge and GOAT rules core, runs locally with no backend, and offers deck and first-player selection. The full `web/play.html` now also uses that action mapping and model, but always starts the human as Player 1. To build both static pages locally:
 
 ```sh
 node infra/build-play.mjs
@@ -108,7 +108,7 @@ node infra/build-bot.mjs
 python3 -m http.server 8000 -d web
 ```
 
-Open `http://localhost:8000/bot.html`. After retraining, run `python3 infra/export-policy.py` and rebuild before deploying. This model is a smoke-test opponent, not a competitive agent.
+Open `http://localhost:8000/play.html` for the full board or `http://localhost:8000/bot.html` for the compact board. After retraining, run `python3 infra/export-policy.py` and rebuild before deploying. This model is a smoke-test opponent, not a competitive agent.
 
 ## Web prototype
 

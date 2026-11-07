@@ -852,7 +852,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
 <body>
 
 <div id="topbar">
-  <span class="brand">Yugi Bench · Two-player GOAT</span>
+  <span class="brand" id="modeBrand">Yugi Bench · Two-player GOAT</span>
   <span style="color:#5f7594;font-size:11px">motor ocgcore · reglas 2005</span>
   <span class="sep"></span>
   <span id="turnInfo" style="font-size:12px;letter-spacing:.1em;text-transform:none"></span>
@@ -896,19 +896,20 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
     <div class="mpant" id="pHome" data-p="home">
       <h1>GOAT FORMAT</h1>
       <p class="msub">Motor de reglas de EDOPro · formato de abril de 2005</p>
-      <p class="msub">Local hot-seat · two humans · ocgcore validates every move</p>
+      <p class="msub">Full GOAT rules · play a friend or the trained smoke model</p>
+      <button class="mbig" id="irModelo">Play against the model</button>
       <button class="mbig" id="irJugar">Play two-player duel</button>
-      <p class="mnota">Pass the device when the handoff screen appears. Each player sees only their own hand. Single duel, not best-of-three.</p>
+      <p class="mnota">The model is experimental and still uses automatic fallbacks for some complex choices. In two-player mode, pass the device at each handoff.</p>
     </div>
 
     <div class="mpant" id="pJugar" data-p="jugar" hidden>
-      <h2>Two-player duel</h2>
+      <h2 id="duelModeTitle">Two-player duel</h2>
       <div class="mrej" id="mNiveles" style="display:none"></div>
       <div id="mAvatares" style="display:none"></div>
-      <label class="mlab">Player 1 deck · goes first</label>
+      <label class="mlab" id="humanDeckLabel">Player 1 deck · goes first</label>
       <div class="galeria" id="mGaleria"></div>
       <div class="mnota" id="mMazoInfo"></div>
-      <label class="mlab">Player 2 deck</label>
+      <label class="mlab" id="opponentDeckLabel">Player 2 deck</label>
       <select id="mMazoIA"></select>
       <button class="mbig" id="mJugar">Start duel</button>
       <button class="mvolver" id="volver1">← Volver</button>
@@ -985,6 +986,7 @@ const avatarSrc = k => AVATARES[k] ? "data:image/webp;base64,"+AVATARES[k].d : "
 const avatarNombre = k => AVATARES[k]?.n ?? "Oponente";
 const cfg = { nivel:"duro", cadenas:"always", tiempo:0, mazo:"i0", mazoIA:"i1",
               avatar:"yamiyugi", idioma:"en" };
+let selectedOpponent="human";
 try{ Object.assign(cfg, JSON.parse(localStorage.getItem("goatConfig")||"{}")); }catch(e){}
 const ETIQ={novato:"Novato",normal:"Normal",duro:"Duro",experto:"Experto"};
 function guardarCfg(){ try{ localStorage.setItem("goatConfig", JSON.stringify(cfg)); }catch(e){} }
@@ -1120,7 +1122,7 @@ function pintarMenu(){
   selIA.onchange=()=>{ cfg.mazoIA=selIA.value; guardarCfg(); };
   __traducirDOM?.(document.getElementById("menu"));
 }
-for(const [id,dest] of [["irJugar","jugar"],["irOpciones","opciones"],["irBots","bots"],
+for(const [id,dest] of [["irOpciones","opciones"],["irBots","bots"],
                         ["volver1","home"],["volver2","home"],["volver3","home"]]){
   const b=document.getElementById(id);
   if(b) b.onclick=()=>{ irA(dest); pintarMenu(); };
@@ -1146,6 +1148,17 @@ __setIdioma?.(cfg.idioma);
 for(const id of ["topbar","menu","boot","side","controles","phases","rotar"])
   __traducirDOM?.(document.getElementById(id));
 pintarMenu(); irA("home");
+function chooseOpponent(mode){
+  selectedOpponent=mode;
+  irA("jugar"); pintarMenu();
+  const model=mode==="model";
+  document.getElementById("duelModeTitle").textContent=model ? "Play the trained model" : "Two-player duel";
+  document.getElementById("humanDeckLabel").textContent=model ? "Your deck · you go first" : "Player 1 deck · goes first";
+  document.getElementById("opponentDeckLabel").textContent=model ? "Model deck" : "Player 2 deck";
+  document.getElementById("mJugar").textContent=model ? "Start model duel" : "Start duel";
+}
+document.getElementById("irJugar").onclick=()=>chooseOpponent("human");
+document.getElementById("irModelo").onclick=()=>chooseOpponent("model");
 /* Un solo camino para empezar un duelo: lo usan "Duelo VS" y el modo bots.
    `opciones` puede forzar el mazo del rival, el nivel y el reto que estás
    intentando (para apuntar la victoria en el progreso). */
@@ -1155,7 +1168,7 @@ function lanzarDuelo(opciones={}){
   if(mio.main.length<40){ alert(`"${mio.nombre}" tiene ${mio.main.length} cartas; hacen falta 40.`); return; }
   const incluidos=listaMazos().filter(m=>!m.propio && !m.aviso);
   const rival=buscaMazo(cfg.mazoIA);
-  if(!rival || rival.main.length<40){ alert("Choose a valid 40-card Player 2 deck."); return; }
+  if(!rival || rival.main.length<40){ alert("Choose a valid 40-card opponent deck."); return; }
   const mazo  = { deck:[...mio.main],   extra:[...mio.extra] };
   const mazoR = { deck:[...rival.main], extra:[...rival.extra] };
   const faltan = [...new Set([...mazo.deck,...mazo.extra,...mazoR.deck,...mazoR.extra])]
@@ -1170,6 +1183,7 @@ function lanzarDuelo(opciones={}){
        makeTrivialResolver, scriptReader, cardsRaw: CARDS, names: NAMES,
        deck: mazo.deck, extra: mazo.extra, deckRival: mazoR.deck, extraRival: mazoR.extra,
        View, config: { ...cfg, nivel: opciones.nivel ?? cfg.nivel,
+                       opponent:opciones.opponent ?? "human",
                        nombreMazo:mio.nombre, nombreRival:rival.nombre,
                        reto: opciones.reto ?? null,
                        avatarMio:{ src:avatarSrc(cfg.avatar), nombre:avatarNombre(cfg.avatar) },
@@ -1178,6 +1192,6 @@ function lanzarDuelo(opciones={}){
     '<div style="color:#ff6a55;font-size:13px;max-width:640px;text-align:left">'+
     '<b>Error al arrancar</b><br><pre style="white-space:pre-wrap">'+e.stack+'</pre></div>'; });
 }
-document.getElementById("mJugar").onclick = () => lanzarDuelo();
+document.getElementById("mJugar").onclick = () => lanzarDuelo({opponent:selectedOpponent});
 </script>
 </body></html>
