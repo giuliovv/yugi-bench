@@ -204,7 +204,7 @@ function frontHTML(code){
       <span class="fbname">${nameOf(code)}</span>
       ${mon?`<span class="fbstats">${d.attack}/${d.defense}</span>
              <span class="fblv">${"★".repeat(Math.min(d.level||0,8))}</span>`
-           :`<span class="fbstats">${attr}</span>`}
+           :`<span class="fbstats">${T(attr)}</span>`}
     </div>`;
   const img = useImages
     ? `<img class="cimg" src="${IMG_BASE}${artCode(code)}.jpg" loading="lazy"
@@ -219,27 +219,36 @@ function classOf(code){
   if(d.type & T_TRAP) return "trap";
   return "";
 }
-function elFor(card){
+function elFor(card, frontVisible){
   let el=els.get(card.uid);
   if(!el){
     el=document.createElement("div");
-    el.className="card "+classOf(card.code);
+    el.className="card facedown";
     el.dataset.uid=card.uid;
     el.innerHTML=`<div class="shake"><div class="inner">
       <div class="face front"></div>
       <div class="face back"><img src="${CARD_BACK}" alt=""></div></div></div>`;
     layer.appendChild(el); els.set(card.uid, el); wire(el, card);
   }
-  if(el.dataset.code !== String(card.code)){
+  if(frontVisible && el.dataset.code !== String(card.code)){
     el.querySelector(".face.front").innerHTML = frontHTML(card.code);
-    el.className = "card "+classOf(card.code);
+    el.classList.remove("spell", "trap", "fusion");
+    if(classOf(card.code)) el.classList.add(classOf(card.code));
     el.dataset.code = card.code;
+  } else if(!frontVisible){
+    const front=el.querySelector(".face.front");
+    if(front.innerHTML) front.innerHTML = "";
+    el.classList.remove("spell", "trap", "fusion");
+    el.dataset.code = "";
   }
   return el;
 }
 const isFD = p => !!(p & 0x0a);
 const isDef= p => !!(p & 0x0c);
 const TILT=11;
+export function canRenderFront(loc, mine, hidden, preview=false, revealed=false){
+  return loc!==L.DECK && loc!==L.EXTRA && (mine || !hidden || preview || revealed);
+}
 
 function colocarFases(){
   const c=$("#fasesCentro"), st=document.getElementById("stage"),
@@ -281,14 +290,18 @@ export function layoutAll(instant){
     if(loc===L.HAND && p===ME) arr = manoOrdenada(arr.filter(Boolean));
     arr.forEach((card,idx)=>{
       if(!card) return; seen.add(card.uid);
-      const el=elFor(card);
+      const mine = card.controller===ME;
+      const enPrevia = !!(previa && previa.uid===card.uid && loc===L.HAND);
+      const revelada = revelados.has(card.uid);
+      const hidden = loc===L.HAND ? !mine
+                   : (loc===L.DECK || loc===L.EXTRA) ? true
+                   : isFD(card.position);
+      const frontVisible = canRenderFront(loc, mine, hidden, enPrevia, revelada);
+      const el=elFor(card, frontVisible);
       if(el.style.display==="none") el.style.display="";
       el.classList.remove("apilada");
       el.style.transition = instant ? "none" : "transform .48s var(--ease), opacity .3s";
-      const mine = card.controller===ME;
       let x=0,y=0,rz=0,rx=0,tz=0,sc=1,z=10;
-      const enPrevia = !!(previa && previa.uid===card.uid && loc===L.HAND);
-      const revelada = revelados.has(card.uid);
       if(revelada && loc===L.HAND && !mine){
         // en fila, en el centro del tablero y a tamaño legible
         const grupo = arr.filter(c=>c && revelados.has(c.uid));
@@ -343,9 +356,6 @@ export function layoutAll(instant){
          El core marca como "boca abajo" todo lo que está en una mano, así
          que una carta devuelta desde el cementerio (Magician of Faith)
          llegaba con posición 10 y se pintaba del revés en tu propia mano. */
-      const hidden = loc===L.HAND ? !mine
-                   : (loc===L.DECK || loc===L.EXTRA) ? true
-                   : isFD(card.position);
       /* Las cartas de un montón no capturan el ratón: así el hover y el clic
          llegan a la casilla, que es quien enseña el contador y abre el visor.
          Con la del rival encima, el contador de su mazo no salía nunca. */
@@ -698,7 +708,7 @@ let momentoActual = null;
 export const MOMENTOS = { ataque:"Declaración de ataque", damage:"Damage Step" };
 export function setMomento(m){
   momentoActual = MOMENTOS[m] ? m : null;
-  const txt = momentoActual ? MOMENTOS[momentoActual] : "";
+  const txt = momentoActual ? T(MOMENTOS[momentoActual]) : "";
   const marcar = el => {
     if(!el || el.dataset.p!=="BP") return;
     el.dataset.sub = txt;
@@ -709,7 +719,7 @@ export function setMomento(m){
   document.querySelectorAll(".ph").forEach(marcar);
 }
 export function momento(){ return momentoActual; }
-export function momentoTexto(){ return momentoActual ? MOMENTOS[momentoActual] : ""; }
+export function momentoTexto(){ return momentoActual ? T(MOMENTOS[momentoActual]) : ""; }
 
 /* Botones fijos de turno: "siguiente fase" y "terminar turno". */
 export function setControles(cfg){

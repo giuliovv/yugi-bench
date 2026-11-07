@@ -87,7 +87,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
 .card .shake{position:absolute;inset:0;transform-style:preserve-3d}
 .card .inner{position:absolute;inset:0;transform-style:preserve-3d;
   transition:transform .42s var(--ease);border-radius:3px}
-.card.facedown .inner{transform:rotateY(180deg)}
+.card.facedown .inner{transform:rotateY(180deg);transition:none}
 .face{position:absolute;inset:0;backface-visibility:hidden;border-radius:3px;overflow:hidden;
   box-shadow:0 8px 18px rgba(0,0,0,.62)}
 .face.back{transform:rotateY(180deg);
@@ -936,8 +936,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;
         <button data-v="always">Preguntar siempre</button>
         <button data-v="nunca">No activar nada</button>
       </div>
-      <p class="mnota">Con "automáticas" solo se te pregunta cuando hay algo real
-        a lo que responder. En el turno del rival siempre se pregunta.</p>
+      <p class="mnota">Con "automáticas" solo se te pregunta cuando hay algo real a lo que responder. En el turno del rival siempre se pregunta.</p>
       <label class="mlab">Idioma</label>
       <div class="mrej" id="mIdioma">
         <button data-v="en">English</button>
@@ -1007,7 +1006,7 @@ function listaMazos(){
     let mejor=null, mx=-1;
     for(const c of m.main){ const d=CARDS[c];
       if(d && (d.type & 1) && d.attack>mx){ mx=d.attack; mejor=d.alias||c; } }
-    l.push({id:"u"+i, nombre:m.nombre+" (tuyo)", main:m.main, extra:m.extra,
+    l.push({id:"u"+i, nombre:m.nombre+" ("+(__T?.("tuyo")??"tuyo")+")", main:m.main, extra:m.extra,
             aviso: m.main.length<40?"solo "+m.main.length+" cartas":null,
             portada:mejor, propio:true});
   });
@@ -1086,7 +1085,7 @@ function pintarBots(){
     const fila=document.createElement("div");
     fila.className="bfila"+(hechos===NIVELES.length?" completo":"");
     fila.innerHTML=`<img class="bcara" src="${avatarSrc(cara)}" alt="">
-      <span class="bnom">${m.nombre}<small>${hechos}/${NIVELES.length} dificultades</small></span>
+      <span class="bnom">${m.nombre}<small>${__T?.(`${hechos}/${NIVELES.length} dificultades`) ?? `${hechos}/${NIVELES.length} dificultades`}</small></span>
       <span class="bniv"></span>`;
     const cont=fila.querySelector(".bniv");
     NIVELES.forEach((nv,i)=>{
@@ -1100,7 +1099,7 @@ function pintarBots(){
     z.appendChild(fila);
   });
   const r=document.getElementById("bResumen");
-  if(r) r.textContent = `${ganados} de ${total} retos superados`;
+  if(r) r.textContent = __T?.(`${ganados} de ${total} retos superados`) ?? `${ganados} de ${total} retos superados`;
 }
 function pintarMenu(){
   __setIdioma?.(cfg.idioma);
@@ -1116,8 +1115,10 @@ function pintarMenu(){
   pintarGaleria();
   const m=buscaMazo(cfg.mazo);
   document.getElementById("mMazoInfo").textContent = !m ? ""
-    : m.aviso ? `⚠ ${m.aviso}: el Main Deck necesita 40 como mínimo`
-    : `${m.main.length} cartas · validado contra la lista oficial`;
+    : m.aviso ? (__T?.(`⚠ ${m.main.length} cartas: el Main Deck necesita 40 como mínimo`)
+      ?? `⚠ ${m.main.length} cartas: el Main Deck necesita 40 como mínimo`)
+    : (__T?.(`${m.main.length} cartas · validado contra la lista oficial`)
+      ?? `${m.main.length} cartas · validado contra la lista oficial`);
   const selIA=document.getElementById("mMazoIA");
   selIA.innerHTML = todos.map(m=>`<option value="${m.id}">${m.nombre} — ${m.main.length}${m.extra.length?"+"+m.extra.length:""}${m.aviso?" ⚠":""}</option>`).join("");
   selIA.value = cfg.mazoIA;

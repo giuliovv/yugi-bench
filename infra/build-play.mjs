@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
 process.chdir(resolve(root,"vendor/goat-format-simulator/engine/browser"));
-const R = f => readFileSync(f.startsWith("./src/") && ["main.js","view.js","template.html"].includes(f.split("/").at(-1))
+const R = f => readFileSync(f.startsWith("./src/") && ["main.js","view.js","i18n.js","template.html"].includes(f.split("/").at(-1))
   ? resolve(root,"hotseat",f.split("/").at(-1)) : f,"utf-8");
 const stripExports = s => s.replace(/^export\s+(const|function|class|async function|let)/gm,"$1")
                            .replace(/^export\s*\{[^}]*\}\s*;?\s*$/gm,"");

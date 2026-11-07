@@ -68,7 +68,9 @@ test("browser controls start a duel and accept a human action", async () => {
     getElementById: id => { if (!ids.has(id)) ids.set(id, new Element()); return ids.get(id); },
     createElement: tag => new Element(tag),
   };
-  const shuffleMain = new Function("document", `${script}; return shuffleMain;`)(document);
+  const fixedMath = Object.create(Math);
+  fixedMath.random = () => 0.5;
+  const shuffleMain = new Function("document", "Math", `${script}; return shuffleMain;`)(document, fixedMath);
   const cards = [1, 2, 3, 4];
   assert.deepEqual(shuffleMain(cards, () => 0), [2, 3, 4, 1]);
   assert.deepEqual(cards, [1, 2, 3, 4]);

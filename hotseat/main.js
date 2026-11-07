@@ -180,7 +180,7 @@ function declararCarta(codigos, alElegir){
   const p=document.getElementById("prompt");
   p.innerHTML=`<div class="ptitle">${T("Declara una carta")}</div>
     <input id="buscaCarta" placeholder="${T("Escribe un nombre…")}" autocomplete="off">
-    <div class="pnote" id="buscaAyuda">${codigos.length} cartas posibles</div>
+    <div class="pnote" id="buscaAyuda">${T(`${codigos.length} cartas posibles`)}</div>
     <div class="popts" id="buscaRes"></div>`;
   p.style.display="block";
   const inp=p.querySelector("#buscaCarta"), res=p.querySelector("#buscaRes");
@@ -200,7 +200,8 @@ function declararCarta(codigos, alElegir){
       res.appendChild(b);
     }
     p.querySelector("#buscaAyuda").textContent =
-      q ? `${hits.length}${hits.length>=40?"+":""} coincidencias` : `${codigos.length} cartas posibles · escribe para filtrar`;
+      q ? T(`${hits.length}${hits.length>=40?"+":""} coincidencias`)
+        : T(`${codigos.length} cartas posibles · escribe para filtrar`);
   };
   inp.oninput=pintar; pintar();
   setTimeout(()=>inp.focus?.(),30);
@@ -517,7 +518,7 @@ function ask(m){
                       setTimeout(abrirVisor,60); });
       };
       const render=()=>{
-        const opts=list.map((c,i)=>({label:`${chosen.includes(i)?"✓ ":""}${nm(c.code)} (${LOCNAME[c.location]??"?"})`,
+        const opts=list.map((c,i)=>({label:`${chosen.includes(i)?"✓ ":""}${nm(c.code)} (${T(LOCNAME[c.location]??"?")})`,
           primary:chosen.includes(i),run:()=>choose(i)}));
         if(m.type!==T.SELECT_UNSELECT_CARD && chosen.length>=min)
           opts.unshift({label:`Confirmar (${chosen.length})`,primary:true,run:()=>send({type:rt,indicies:[...chosen]})});
@@ -527,8 +528,8 @@ function ask(m){
         if(necesitaVisor) opts.unshift({label:"👁 Ver las cartas",primary:true,run:abrirVisor});
         panel(conMomento(`Selecciona ${min===(m.max??min)?min:`${min}-${m.max}`} carta(s)`, m),opts,
               necesitaVisor ? "Hay cartas fuera del tablero: ábrelas para verlas"
-                            : "Haz clic en las cartas marcadas, en el campo o en tu mano"
-                              + (chosen.length?` · elegidas: ${chosen.length}`:""));
+                            : T("Haz clic en las cartas marcadas, en el campo o en tu mano")
+                              + (chosen.length?` · ${T("elegidas")}: ${chosen.length}`:""));
         V.setHandlers({ onClick: card=>{ const i=list.findIndex((_,k)=>uidOf(k)===card.uid); if(i>=0) choose(i); } });
         V.markTargets(new Set(list.map((_,i)=>uidOf(i)).filter(Boolean)));
       };
@@ -568,13 +569,13 @@ function ask(m){
       }
       const cuantas=m.count??1, elegidas=[];
       const pinta=()=>panel(esRaza?"Declara un Tipo":"Declara un Atributo",
-        bits.map(([b,n])=>({label:(elegidas.includes(b)?"✓ ":"")+n, primary:elegidas.includes(b),
+        bits.map(([b,n])=>({label:(elegidas.includes(b)?"✓ ":"")+T(n), primary:elegidas.includes(b),
           run:()=>{ elegidas.push(b);
             if(elegidas.length>=cuantas)
               send(esRaza?{type:R.ANNOUNCE_RACE,races:elegidas}
                          :{type:R.ANNOUNCE_ATTRIB,attributes:elegidas},"declara "+n);
             else pinta(); }})),
-        cuantas>1?`Elige ${cuantas}`:null);
+        cuantas>1?T(`Elige ${cuantas}`):null);
       pinta(); return;
     }
     case T.ANNOUNCE_NUMBER:
@@ -737,8 +738,8 @@ export async function boot({ createCore, Xns, GoatDuel, makeAutoPlayer, makeTriv
       V.toast("No puedes ver el Extra Deck del rival"); return;
     }
     const arr=duel.zones[owner][ZL[zone]] ?? [];
-    const quien = T(Number(owner)===ME ? "tu" : "del rival");
-    const titulo = T(zone==="gy"?"Cementerio" : zone==="extra"?"Extra Deck" : "Cartas desterradas");
+    const quien = Number(owner)===ME ? "tu" : "del rival";
+    const titulo = zone==="gy"?"Cementerio" : zone==="extra"?"Extra Deck" : "Cartas desterradas";
     View.openZoneView(`${titulo} ${quien} — ${arr.length} carta(s)`,
       [...arr].reverse());
   });
