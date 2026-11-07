@@ -1,7 +1,7 @@
 /* Ensambla UN solo .html autocontenido (sin servidor, sin imports externos).
    Cada módulo va en su propio ámbito: el core está minificado y sus
    identificadores de una letra chocan con los nuestros si se mezclan. */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 const root=resolve(dirname(fileURLToPath(import.meta.url)),"..");
@@ -41,9 +41,13 @@ const modelAdapter = `const createModelAdapter = ({duel,X,names,LOC,automatic})=
   `onEvent(event){if(event.t==="revelar")for(const uid of event.uids)revealed.add(uid);`+
   `if(event.t==="chainEnd")revealed.clear();}};\n};`;
 const llmEndpoint = readFileSync(resolve(root,"infra/llm-proxy-url.txt"),"utf8").trim();
+const cardManifestPath = resolve(root,"web/cards/manifest.json");
+const cardManifest = existsSync(cardManifestPath)
+  ? JSON.parse(readFileSync(cardManifestPath,"utf8")) : { full: [], cropped: [] };
 
 const parts = [
 `${stripExports(R("./out/cardback.js"))}`,
+`const CARD_ART = ${iife(stripExports(readFileSync(resolve(root,"runtime/card-art.js"),"utf8")), "createCardArt")}.createCardArt(${JSON.stringify(cardManifest)});`,
 // el módulo de idiomas va PRIMERO: deja __T en globalThis y el resto lo usa
 `const I18N = ${iife(stripExports(R("./src/i18n.js")), "T, setIdioma, idioma, traducirDOM")};`,
 `const {T:__T_, setIdioma:__setIdioma, traducirDOM:__traducirDOM} = I18N;`,

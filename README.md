@@ -21,7 +21,7 @@ Use the [GOAT Format historical card pool and April 2005 TCG banlist](https://be
 
 High-level summon, set, activate, battle, chain, yes/no, and small card-selection prompts are enumerated. More complex prompts, such as multi-place selection and large card combinations, currently expose one `automatic_choice` backed by a deterministic baseline. **Do not train a final policy or claim full action coverage until these are enumerated.** The underlying duel still uses ocgcore's rules.
 
-The dependency is pinned as a Git submodule and is AGPL-3.0-or-later. This repository uses the same license; see `LICENSE`. Card names/data come from the upstream dependency; do not redistribute card artwork.
+The dependency is pinned as a Git submodule and is AGPL-3.0-or-later. This repository uses the same license; see `LICENSE`. Card names/data come from the upstream dependency; card artwork is not included in the Git repository and remains subject to its owners' rights.
 
 ## Roadmap
 
@@ -64,13 +64,14 @@ Build the self-contained game page from the pinned simulator and our hot-seat ad
 
 ```sh
 git submodule update --init --recursive
+node infra/prepare-card-assets.mjs
 node infra/build-play.mjs
 node infra/build-bot.mjs
 node infra/build-pwa.mjs
 python3 -m http.server 8000 -d web
 ```
 
-Open `http://localhost:8000/play.html`. Choose **Play against the model**, **Play against an LLM**, or **Play two-player duel**, then select both decks. In model/LLM mode, you are Player 1 and the opponent controls Player 2 on the same full board; there is no handoff screen. In two-player mode, pass the device when the privacy screen appears. All card choices, phases, chains, and attacks are checked by ocgcore. The local model and hot-seat modes have no backend or account; LLM mode uses the relay described below. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
+Open `http://localhost:8000/play.html`. Choose **Play against the model**, **Play against an LLM**, or **Play two-player duel**, then select both decks. In model/LLM mode, you are Player 1 and the opponent controls Player 2 on the same full board; there is no handoff screen. In two-player mode, pass the device when the privacy screen appears. All card choices, phases, chains, and attacks are checked by ocgcore. The local model and hot-seat modes have no backend or account; LLM mode uses the relay described below. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Artwork from the bundled decks is downloaded once to `web/cards/` and served from our CloudFront bucket; cards outside that set use YGOPRODeck as a fallback. The game has text fallbacks.
 
 ### Bring your own API key
 
@@ -80,7 +81,7 @@ The browser sends the key with each decision over HTTPS to a stateless AWS Lambd
 
 Deploy the LLM relay with `bash infra/deploy-llm-proxy.sh`; this records its public URL in `infra/llm-proxy-url.txt` for the static bundle. `infra/deploy-web.sh` deploys/updates the relay first, then builds and publishes CloudFront. The Lambda URL CORS policy allows only the Yugi Bench CloudFront origin. The deploy script tries to reserve concurrency at 3, but AWS accounts with the default 10-concurrency quota cannot reserve any; in that case the relay runs on the shared 10-concurrency pool. CORS is a browser control, **not** authentication; the public URL can still be called outside a browser with a caller-supplied API key. Rotate the key if you suspect exposure.
 
-The site is installable as a PWA from its HTTPS CloudFront URL (or localhost). In Chrome/Edge, use **Install app** in the browser menu; on iPhone/iPad, use **Share → Add to Home Screen**. The game pages and local assets are available offline after the service worker finishes caching them. External card artwork needs a connection; card text fallbacks remain available. The service worker fetches fresh same-origin files when online and uses its cache only when offline. Rebuild `web/sw.js` with `node infra/build-pwa.mjs` after changing any web asset.
+The site is installable as a PWA from its HTTPS CloudFront URL (or localhost). In Chrome/Edge, use **Install app** in the browser menu; on iPhone/iPad, use **Share → Add to Home Screen**. The game pages and service-worker precached assets work offline; card art is not precached and needs a connection unless already in the browser cache. Card text fallbacks remain available. The service worker fetches fresh same-origin files when online and uses its cache only when offline. Rebuild `web/sw.js` with `node infra/build-pwa.mjs` after changing any web asset.
 
 `hotseat/` adapts the [AGPL-licensed upstream browser client](https://github.com/circlenline/goat-format-simulator); `infra/build-play.mjs` bundles it with the pinned core, the same policy weights as the compact board, and the training bridge's legal-action mapping. Do not hand-edit generated `web/play.html`.
 
@@ -133,8 +134,8 @@ To deploy to AWS from an identity with S3, CloudFront, IAM, and Lambda permissio
 bash infra/deploy-web.sh
 ```
 
-The script is idempotent: it uses a private account-scoped S3 bucket and an LLM relay Lambda in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. It publishes the new service worker only after the game assets are available at the edge. It prints the distribution URL. No public S3 access or custom domain is required.
+The script is idempotent: it uses a private account-scoped S3 bucket and an LLM relay Lambda in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. Before building, it restores downloaded artwork from S3 and fetches only missing bundled-deck images. Generated images are ignored by Git. It publishes the new service worker only after the game assets are available at the edge. It prints the distribution URL. No public S3 access or custom domain is required.
 
 ## References and rights
 
-GOAT rules: [GOAT Format](https://beta.goatformat.com/learn/goat-format-history). Engine dependency: [Goat Format Simulator](https://github.com/circlenline/goat-format-simulator), [Project Ignis ocgcore](https://github.com/edo9300/ygopro-core). UI inspiration: [DuelingBook](https://www.duelingbook.com/). Card names, artwork, and game trademarks belong to their respective owners. Do not redistribute scraped card images or DuelingBook content.
+GOAT rules: [GOAT Format](https://beta.goatformat.com/learn/goat-format-history). Engine dependency: [Goat Format Simulator](https://github.com/circlenline/goat-format-simulator), [Project Ignis ocgcore](https://github.com/edo9300/ygopro-core). UI inspiration: [DuelingBook](https://www.duelingbook.com/). [YGOPRODeck image guidance](https://ygoprodeck.com/api-guide/) asks consumers to download and re-host images rather than continually hotlink them. Our fallback for cards outside bundled decks still hotlinks, so broaden the local cache before promoting arbitrary deck imports. Card names, artwork, and game trademarks belong to their respective owners; this deployment does not grant rights to redistribute them elsewhere.

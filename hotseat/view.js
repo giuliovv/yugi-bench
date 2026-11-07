@@ -16,7 +16,7 @@ const ATTRCOL = { 1:["#6b2f1d","#2a0f08","FUEGO"], 2:["#1f4f68","#0a1e28","AGUA"
   64:["#4a3a5a","#1a1020","DIVINO"] };
 ATTRCOL[32] = ["#412a5e","#170b22","OSCURIDAD"];
 const T_MONSTER=0x1, T_SPELL=0x2, T_TRAP=0x4, T_FUSION=0x40, T_FIELD=0x80000;
-const IMG_BASE = "https://images.ygoprodeck.com/images/cards/";
+const cardImageUrl = code => CARD_ART.full(artCode(code));
 
 let grid, layer, DUEL, DB, NAMES, ME=0, useImages=true;
 /* Orden visual de tu mano. Es SOLO de la vista: el motor mantiene su
@@ -207,7 +207,7 @@ function frontHTML(code){
            :`<span class="fbstats">${T(attr)}</span>`}
     </div>`;
   const img = useImages
-    ? `<img class="cimg" src="${IMG_BASE}${artCode(code)}.jpg" loading="lazy"
+    ? `<img class="cimg" src="${cardImageUrl(code)}" loading="lazy"
          onload="this.parentNode.classList.add('hasimg')">`
     : "";
   return respaldo + img;
@@ -421,7 +421,7 @@ export function alHistorial(code, mia, tipo){
   d.dataset.tipo = tipo ?? "";
   d.title = `${nameOf(code)} — ${T(mia?"tú":"rival")}`;
   d.innerHTML = useImages
-    ? `<img src="${IMG_BASE}${artCode(code)}.jpg" loading="lazy" alt="">`
+    ? `<img src="${cardImageUrl(code)}" loading="lazy" alt="">`
     : `<span class="hnom">${nameOf(code)}</span>`;
   d.onmouseenter = ()=>showDetail(code);
   d.onclick = ()=>showDetail(code);
@@ -435,7 +435,7 @@ export function showDetail(code){
   const d=DB.get(code); if(!d) return;
   const mon=!!(d.type & T_MONSTER);
   const attr = T(mon ? (ATTRCOL[d.attribute]?.[2] ?? "") : (d.type & T_SPELL ? "Carta Mágica":"Carta de Trampa"));
-  const img = useImages ? `<img class="dimg" src="${IMG_BASE}${artCode(code)}.jpg"
+  const img = useImages ? `<img class="dimg" src="${cardImageUrl(code)}"
       onerror="this.style.display='none'">` : "";
   $("#detail").innerHTML = `${img}
     <h3>${nameOf(code)}</h3>

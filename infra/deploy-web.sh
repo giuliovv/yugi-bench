@@ -8,9 +8,6 @@ OAC_NAME="yugi-bench-web-${ACCOUNT_ID}"
 COMMENT="Yugi Bench UI"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bash "$ROOT/infra/deploy-llm-proxy.sh"
-node "$ROOT/infra/build-play.mjs"
-node "$ROOT/infra/build-bot.mjs"
-node "$ROOT/infra/build-pwa.mjs"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -87,6 +84,12 @@ BUCKET="$BUCKET" ACCOUNT_ID="$ACCOUNT_ID" DIST_ID="$DIST_ID" \
     fs.writeFileSync(process.argv[1], JSON.stringify(policy));
   ' "$TMP/policy.json"
 aws s3api put-bucket-policy --bucket "$BUCKET" --policy "file://$TMP/policy.json"
+mkdir -p "$ROOT/web/cards"
+aws s3 sync "s3://$BUCKET/cards/" "$ROOT/web/cards/" --region "$REGION" --only-show-errors
+node "$ROOT/infra/prepare-card-assets.mjs"
+node "$ROOT/infra/build-play.mjs"
+node "$ROOT/infra/build-bot.mjs"
+node "$ROOT/infra/build-pwa.mjs"
 aws s3 sync "$ROOT/web/" "s3://$BUCKET/" --delete --exclude 'sw.js' --region "$REGION"
 aws s3 cp "$ROOT/web/manifest.webmanifest" "s3://$BUCKET/manifest.webmanifest" \
   --content-type 'application/manifest+json' --region "$REGION" >/dev/null

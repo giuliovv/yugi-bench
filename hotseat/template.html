@@ -1048,7 +1048,7 @@ function grupo(id, valores, campo, alCambiar){
   }
 }
 function portada(m){
-  return m.portada ? `https://images.ygoprodeck.com/images/cards_cropped/${m.portada}.jpg` : "";
+  return m.portada ? CARD_ART.cropped(m.portada) : "";
 }
 function pintarGaleria(){
   const g=document.getElementById("mGaleria"); if(!g) return;
