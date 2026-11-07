@@ -447,14 +447,14 @@ function armBattle(m){
 
 /* ── el resto de decisiones, en panel ── */
 function ask(m){
-  const T=OCG.OcgMessageType, R=OCG.OcgResponseType;
+  const MT=OCG.OcgMessageType, R=OCG.OcgResponseType;
   const send=(r,et)=>{ hidePanel(); V.markTargets(new Set()); V.setHandlers({});
                        V.setZoneViewClose(null); V.closeZoneView(); V.quitarPrevia(false);
                        respondLogged(r,et??msgName(m)); loop(); };
   switch(m.type){
-    case T.SELECT_IDLECMD:   return armIdle(m);
-    case T.SELECT_BATTLECMD: return armBattle(m);
-    case T.SELECT_CHAIN: {
+    case MT.SELECT_IDLECMD:   return armIdle(m);
+    case MT.SELECT_BATTLECMD: return armBattle(m);
+    case MT.SELECT_CHAIN: {
       const opts=(m.selects||[]).map((c,i)=>({label:`Encadenar ${nm(c.code)}`,primary:true,
         run:()=>send({type:R.SELECT_CHAIN,index:i})}));
       if(!m.forced) opts.push({label:"No responder",run:()=>send({type:R.SELECT_CHAIN,index:null})});
@@ -472,11 +472,11 @@ function ask(m){
         });
       return;
     }
-    case T.SELECT_EFFECTYN:
+    case MT.SELECT_EFFECTYN:
       return panel(conMomento(`¿Activar el efecto de ${nm(m.code)}?`, m),[
         {label:"Sí",primary:true,run:()=>send({type:R.SELECT_EFFECTYN,yes:true})},
         {label:"No",run:()=>send({type:R.SELECT_EFFECTYN,yes:false})}]);
-    case T.SELECT_YESNO: {
+    case MT.SELECT_YESNO: {
       /* El motor mete el código de la carta dentro de la descripción:
          así el panel dice de qué efecto habla en vez de "¿Confirmas?". */
       const cod = cartaDeDescripcion(m.description);
@@ -484,24 +484,24 @@ function ask(m){
         {label:"Sí",primary:true,run:()=>send({type:R.SELECT_YESNO,yes:true})},
         {label:"No",run:()=>send({type:R.SELECT_YESNO,yes:false})}]);
     }
-    case T.SELECT_OPTION:
+    case MT.SELECT_OPTION:
       return panel("Elige una opción",(m.options||[]).map((o,i)=>
         ({label:`Opción ${i+1}`,run:()=>send({type:R.SELECT_OPTION,index:i})})));
-    case T.SELECT_POSITION: {
+    case MT.SELECT_POSITION: {
       const P=OCG.OcgPosition,o=[];
       if(m.positions&P.FACEUP_ATTACK)   o.push({label:"Ataque",primary:true,run:()=>send({type:R.SELECT_POSITION,position:P.FACEUP_ATTACK})});
       if(m.positions&P.FACEUP_DEFENSE)  o.push({label:"Defensa",run:()=>send({type:R.SELECT_POSITION,position:P.FACEUP_DEFENSE})});
       if(m.positions&P.FACEDOWN_DEFENSE)o.push({label:"Defensa boca abajo",run:()=>send({type:R.SELECT_POSITION,position:P.FACEDOWN_DEFENSE})});
       return panel("¿En qué posición?",o);
     }
-    case T.SELECT_CARD: case T.SELECT_TRIBUTE: case T.SELECT_UNSELECT_CARD: {
-      const list=m.type===T.SELECT_UNSELECT_CARD?(m.select_cards||[]):(m.selects||[]);
-      const min=m.type===T.SELECT_UNSELECT_CARD?1:Math.max(1,m.min??1);
-      const rt=m.type===T.SELECT_TRIBUTE?R.SELECT_TRIBUTE
-             :m.type===T.SELECT_UNSELECT_CARD?R.SELECT_UNSELECT_CARD:R.SELECT_CARD;
+    case MT.SELECT_CARD: case MT.SELECT_TRIBUTE: case MT.SELECT_UNSELECT_CARD: {
+      const list=m.type===MT.SELECT_UNSELECT_CARD?(m.select_cards||[]):(m.selects||[]);
+      const min=m.type===MT.SELECT_UNSELECT_CARD?1:Math.max(1,m.min??1);
+      const rt=m.type===MT.SELECT_TRIBUTE?R.SELECT_TRIBUTE
+             :m.type===MT.SELECT_UNSELECT_CARD?R.SELECT_UNSELECT_CARD:R.SELECT_CARD;
       const chosen=[], uidOf=i=>duel.resolve(list[i], list[i].code)?.uid;
       const choose=i=>{
-        if(m.type===T.SELECT_UNSELECT_CARD) return send({type:rt,index:i});
+        if(m.type===MT.SELECT_UNSELECT_CARD) return send({type:rt,index:i});
         const k=chosen.indexOf(i); k>=0?chosen.splice(k,1):chosen.push(i);
         if(chosen.length>=(m.max??min) && chosen.length>=min) return send({type:rt,indicies:[...chosen]});
         render();
@@ -520,11 +520,11 @@ function ask(m){
       const render=()=>{
         const opts=list.map((c,i)=>({label:`${chosen.includes(i)?"✓ ":""}${nm(c.code)} (${T(LOCNAME[c.location]??"?")})`,
           primary:chosen.includes(i),run:()=>choose(i)}));
-        if(m.type!==T.SELECT_UNSELECT_CARD && chosen.length>=min)
+        if(m.type!==MT.SELECT_UNSELECT_CARD && chosen.length>=min)
           opts.unshift({label:`Confirmar (${chosen.length})`,primary:true,run:()=>send({type:rt,indicies:[...chosen]})});
         if(m.can_cancel) opts.push({label:"Cancelar",run:()=>send({type:rt,
-          ...(m.type===T.SELECT_UNSELECT_CARD?{index:null}:{indicies:null})})});
-        if(m.type===T.SELECT_UNSELECT_CARD && m.can_finish) opts.push({label:"Terminar",run:()=>send({type:rt,index:null})});
+          ...(m.type===MT.SELECT_UNSELECT_CARD?{index:null}:{indicies:null})})});
+        if(m.type===MT.SELECT_UNSELECT_CARD && m.can_finish) opts.push({label:"Terminar",run:()=>send({type:rt,index:null})});
         if(necesitaVisor) opts.unshift({label:"👁 Ver las cartas",primary:true,run:abrirVisor});
         panel(conMomento(`Selecciona ${min===(m.max??min)?min:`${min}-${m.max}`} carta(s)`, m),opts,
               necesitaVisor ? "Hay cartas fuera del tablero: ábrelas para verlas"
@@ -541,7 +541,7 @@ function ask(m){
       if(necesitaVisor) abrirVisor();
       return;
     }
-    case T.ANNOUNCE_CARD: {
+    case MT.ANNOUNCE_CARD: {
       /* Archfiend's Oath y compañía piden declarar el nombre de una carta.
          Los "opcodes" del mensaje limitan qué vale (solo monstruos, etc.),
          y el propio motor trae la función para comprobarlo. */
@@ -558,8 +558,8 @@ function ask(m){
                                       "declara "+nm(code)));
       return;
     }
-    case T.ANNOUNCE_RACE: case T.ANNOUNCE_ATTRIB: {
-      const esRaza = m.type===T.ANNOUNCE_RACE;
+    case MT.ANNOUNCE_RACE: case MT.ANNOUNCE_ATTRIB: {
+      const esRaza = m.type===MT.ANNOUNCE_RACE;
       const N = esRaza ? RAZAS : ATRIBUTOS;
       const bits=[]; const disp = esRaza ? BigInt(m.available) : m.available;
       for(let i=0;i<(esRaza?64:32);i++){
@@ -578,10 +578,10 @@ function ask(m){
         cuantas>1?T(`Elige ${cuantas}`):null);
       pinta(); return;
     }
-    case T.ANNOUNCE_NUMBER:
+    case MT.ANNOUNCE_NUMBER:
       return panel("Declara un número",(m.options||[]).map((o,i)=>
         ({label:String(o), run:()=>send({type:R.ANNOUNCE_NUMBER,value:i},"declara "+o)})));
-    case T.SELECT_PLACE: case T.SELECT_DISFIELD: {
+    case MT.SELECT_PLACE: case MT.SELECT_DISFIELD: {
       // si el jugador acaba de soltar en una zona concreta, respetarla
       const r=placeFromDrop(m) ?? decideAI(m,0);
       return send(r);
