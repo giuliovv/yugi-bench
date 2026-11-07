@@ -2,7 +2,7 @@
 
 Training-first foundation for a Yu-Gi-Oh! GOAT-format agent. The Python API and the local two-player browser game both use the pinned GOAT-mode ocgcore engine. The training action space is not yet complete.
 
-The landing page's workbench is a scripted design prototype. `web/play.html` is the full rules-validating board for either a human-vs-model or local two-player duel; `web/bot.html` is a compact model-duel board.
+The landing page's workbench is a scripted design prototype. `web/play.html` is the full rules-validating board for human-vs-model, human-vs-LLM, or local two-player duels; `web/bot.html` is a compact model-duel board.
 
 ## Why this shape
 
@@ -70,7 +70,15 @@ node infra/build-pwa.mjs
 python3 -m http.server 8000 -d web
 ```
 
-Open `http://localhost:8000/play.html`. Choose **Play against the model** or **Play two-player duel**, then select both decks. In model mode, you are Player 1 and the smoke model controls Player 2 on the same full board; there is no handoff screen. In two-player mode, pass the device when the privacy screen appears. All card choices, phases, chains, and attacks are checked by ocgcore; there is no backend or account. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
+Open `http://localhost:8000/play.html`. Choose **Play against the model**, **Play against an LLM**, or **Play two-player duel**, then select both decks. In model/LLM mode, you are Player 1 and the opponent controls Player 2 on the same full board; there is no handoff screen. In two-player mode, pass the device when the privacy screen appears. All card choices, phases, chains, and attacks are checked by ocgcore. The local model and hot-seat modes have no backend or account; LLM mode uses the relay described below. Opponent hands and face-down cards are hidden in the normal UI, but **hot-seat is not a security boundary**: someone with browser developer tools can inspect client memory. This is a single duel, not a best-of-three match. Card artwork loads from YGOPRODeck when online; the game has text fallbacks.
+
+### Bring your own API key
+
+On the full board, choose **Play against an LLM**, then OpenAI or Anthropic, a model ID, and your provider API key. The menu suggests current model IDs, but accepts a custom ID if your account has access. This mode requires a network connection and incurs charges on **your provider account** for each non-automatic opponent decision, up to 120 requests per duel. If the provider times out, rate-limits, or proposes an illegal move, the duel pauses for **Retry LLM** or **Use local model for this move**. The engine validates every chosen action ID; the LLM cannot make up a move.
+
+The browser sends the key with each decision over HTTPS to a stateless AWS Lambda Function URL in `eu-west-1`; the relay sends it to the chosen provider. The key is kept only in browser memory, is not saved in localStorage, S3, or Lambda storage, and is not included in duel logs. The Lambda role has no data access and no CloudWatch write policy. The request includes the acting player's observation, visible card names, and legal actions, **not** the opponent's hidden cards. OpenAI responses set `store: false`. Use a scoped, low-limit key; this is still a third-party site handling your credential in transit, not a zero-trust client. If you do not accept that trust boundary, use the local model. The PWA remains playable offline in its other modes.
+
+Deploy the LLM relay with `bash infra/deploy-llm-proxy.sh`; this records its public URL in `infra/llm-proxy-url.txt` for the static bundle. `infra/deploy-web.sh` deploys/updates the relay first, then builds and publishes CloudFront. The Lambda URL CORS policy allows only the Yugi Bench CloudFront origin. The deploy script tries to reserve concurrency at 3, but AWS accounts with the default 10-concurrency quota cannot reserve any; in that case the relay runs on the shared 10-concurrency pool. CORS is a browser control, **not** authentication; the public URL can still be called outside a browser with a caller-supplied API key. Rotate the key if you suspect exposure.
 
 The site is installable as a PWA from its HTTPS CloudFront URL (or localhost). In Chrome/Edge, use **Install app** in the browser menu; on iPhone/iPad, use **Share → Add to Home Screen**. The game pages and local assets are available offline after the service worker finishes caching them. External card artwork needs a connection; card text fallbacks remain available. The service worker fetches fresh same-origin files when online and uses its cache only when offline. Rebuild `web/sw.js` with `node infra/build-pwa.mjs` after changing any web asset.
 
@@ -119,13 +127,13 @@ Open `http://localhost:8000/play.html` for the full board or `http://localhost:8
 
 Open `web/index.html` locally, or serve it with `python3 -m http.server 8000 -d web`. Select sample actions to inspect how a future engine's player observation, action list, and decision trace will fit together. Card panels are original placeholders, not Yu-Gi-Oh! artwork.
 
-To deploy to AWS from an identity with S3 and CloudFront permissions:
+To deploy to AWS from an identity with S3, CloudFront, IAM, and Lambda permissions:
 
 ```sh
 bash infra/deploy-web.sh
 ```
 
-The script is idempotent: it uses a private account-scoped S3 bucket in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. It publishes the new service worker only after the game assets are available at the edge. It prints the distribution URL. No public S3 access or custom domain is required.
+The script is idempotent: it uses a private account-scoped S3 bucket and an LLM relay Lambda in `eu-west-1`, a CloudFront distribution with Origin Access Control, and invalidates cached content after upload. It publishes the new service worker only after the game assets are available at the edge. It prints the distribution URL. No public S3 access or custom domain is required.
 
 ## References and rights
 

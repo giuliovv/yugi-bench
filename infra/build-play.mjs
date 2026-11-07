@@ -40,6 +40,7 @@ const modelAdapter = `const createModelAdapter = ({duel,X,names,LOC,automatic})=
   `response(id){if(!actions.has(id))throw new Error(\`illegal model action: \${id}\`);return actions.get(id);},`+
   `onEvent(event){if(event.t==="revelar")for(const uid of event.uids)revealed.add(uid);`+
   `if(event.t==="chainEnd")revealed.clear();}};\n};`;
+const llmEndpoint = readFileSync(resolve(root,"infra/llm-proxy-url.txt"),"utf8").trim();
 
 const parts = [
 `${stripExports(R("./out/cardback.js"))}`,
@@ -53,6 +54,8 @@ const parts = [
 `const {makeTrivialResolver} = ${iife(stripExports(R("./src/trivial.js")), "makeTrivialResolver")};`,
 `const Policy = ${iife(stripExports(readFileSync(resolve(root,"runtime/browser-policy.js"),"utf8")), "chooseAction")};`,
 `const MODEL_WEIGHTS = ${readFileSync(resolve(root,"models/smoke_policy.json"),"utf8")};`,
+`const LLM = ${iife(stripExports(readFileSync(resolve(root,"runtime/browser-llm.js"),"utf8")), "createLlmOpponent")};`,
+`const LLM_ENDPOINT = ${JSON.stringify(llmEndpoint)};`,
 modelAdapter,
 `const {crearCerebro, NIVELES} = ${iife(juntarIA(), "crearCerebro, NIVELES")};`,
 `const View = ${iife(stripExports(R("./src/view.js")),
